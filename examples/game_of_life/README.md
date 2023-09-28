@@ -1,5 +1,6 @@
 ## Game of life programm
 
-* lib/ contains C API library for simple graphics output (in progress)
-* cpp/ contains C++ implementation (in progress)
-* yalp/ contains yalp implementation (in progress)
+* wrap - C API library for random and graphics. These features are not supported
+in yalp out of the box.
+* cpp - C++ implementation
+* yalp - yalp implementation (in progress)
