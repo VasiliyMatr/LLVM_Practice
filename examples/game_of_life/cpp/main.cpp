@@ -2,10 +2,10 @@
 
 namespace {
 
-static constexpr size_t X_CELLS_NUM = 1024;
-static constexpr size_t Y_CELLS_NUM = 768;
+constexpr size_t X_CELLS_NUM = 1024;
+constexpr size_t Y_CELLS_NUM = 768;
 
-static constexpr size_t CELL_PIXEL_SIZE = 1;
+constexpr size_t CELL_PIXEL_SIZE = 1;
 
 void setCell(wrap_Window *window_ptr, size_t x_cell_idx, size_t y_cell_idx,
              wrap_Color color) {
@@ -18,7 +18,7 @@ void setCell(wrap_Window *window_ptr, size_t x_cell_idx, size_t y_cell_idx,
     }
 }
 
-static constexpr int NEIGHBORHOOD_RADIUS = 1;
+constexpr int NEIGHBORHOOD_RADIUS = 1;
 uint32_t countNeighboursSum(uint8_t cells[X_CELLS_NUM][Y_CELLS_NUM],
                             size_t x_cell_idx, size_t y_cell_idx) {
     size_t x_shifted_idx = x_cell_idx + X_CELLS_NUM;
