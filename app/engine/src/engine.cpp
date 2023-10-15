@@ -14,7 +14,7 @@
 #include <SFML/Graphics/Sprite.hpp>
 #include <SFML/Window/Window.hpp>
 
-#include <wrap.hpp>
+#include <engine.hpp>
 
 namespace {
 
@@ -64,20 +64,15 @@ Window *window_ptr = nullptr;
 
 extern "C" {
 
-void wrap_openWindow() {
-    try {
-        window_ptr = new Window{"Wrap", wrap_X_WINDOW_SIZE, wrap_Y_WINDOW_SIZE};
-    } catch (Window::OpenError &error) {
-        std::cerr << error.what() << std::endl;
-        std::terminate();
-    }
+void engine_openWindow() {
+
 }
 
-void wrap_windowSetPixel(int x, int y, int red, int green, int blue) {
+void engine_windowSetPixel(int x, int y, int red, int green, int blue) {
     assert(window_ptr != nullptr);
 
-    assert(x >= 0 && x < wrap_X_WINDOW_SIZE);
-    assert(y >= 0 && y < wrap_Y_WINDOW_SIZE);
+    assert(x >= 0 && x < engine_X_WINDOW_SIZE);
+    assert(y >= 0 && y < engine_Y_WINDOW_SIZE);
 
     assert(red >= 0);
     assert(green >= 0);
@@ -86,10 +81,20 @@ void wrap_windowSetPixel(int x, int y, int red, int green, int blue) {
     window_ptr->setPixel(x, y, convertColor(red, green, blue));
 }
 
-void wrap_windowUpdate() {
+void engine_windowUpdate() {
     assert(window_ptr != nullptr);
 
     window_ptr->update();
 }
 
 } // extern "C"
+
+int main() {
+    window_ptr = new Window{"Wrap", engine_X_WINDOW_SIZE, engine_Y_WINDOW_SIZE};
+
+    app();
+
+    delete window_ptr;
+
+    return 1;
+}

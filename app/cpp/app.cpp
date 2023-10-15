@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <iostream>
 
-#include <wrap.hpp>
+#include <engine.hpp>
 
 using FixedPoint = int;
 
@@ -32,9 +32,7 @@ FixedPoint calcMandIterIm(FixedPoint zRe, FixedPoint zIm, FixedPoint cRe, FixedP
     return complMulIm(zRe, zIm, zRe, zIm) + cIm;
 }
 
-int main() {
-    wrap_openWindow();
-
+void app() {
     int max_zoom_level = 20;
 
     FixedPoint x_center = -FIXED_POINT_1 * 7267 / 10000;
@@ -48,10 +46,10 @@ int main() {
             FixedPoint x_min = x_center - x_range_len / 2;
             FixedPoint y_min = y_center - y_range_len / 2;
 
-            for (int x = 0; x < wrap_X_WINDOW_SIZE; ++x) {
-                FixedPoint cRe = x * x_range_len / wrap_X_WINDOW_SIZE + x_min;
-                for (int y = 0; y < wrap_Y_WINDOW_SIZE; ++y) {
-                    FixedPoint cIm = y * y_range_len / wrap_Y_WINDOW_SIZE + y_min;
+            for (int x = 0; x < engine_X_WINDOW_SIZE; ++x) {
+                FixedPoint cRe = x * x_range_len / engine_X_WINDOW_SIZE + x_min;
+                for (int y = 0; y < engine_Y_WINDOW_SIZE; ++y) {
+                    FixedPoint cIm = y * y_range_len / engine_Y_WINDOW_SIZE + y_min;
 
                     FixedPoint zRe = 0;
                     FixedPoint zIm = 0;
@@ -69,16 +67,14 @@ int main() {
                         zIm = nextZIm;
                     }
 
-                    wrap_windowSetPixel(x, y, i, i, i);
+                    engine_windowSetPixel(x, y, i, i, i);
                 }
             }
 
-            wrap_windowUpdate();
+            engine_windowUpdate();
 
             x_range_len = x_range_len * 3 / 4;
             y_range_len = x_range_len * 3 / 4;
         }
     }
-
-    return 0;
 }
