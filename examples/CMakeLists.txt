@@ -1,4 +1,4 @@
 # Describe examples build
 
-add_subdirectory(game_of_life)
+add_subdirectory(mandel)
 

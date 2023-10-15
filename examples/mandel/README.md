@@ -1,4 +1,4 @@
-## Game of life programm
+## Mandelbrot programm
 
 * wrap - C API library for random and graphics. These features are not supported
 in yalp out of the box.
