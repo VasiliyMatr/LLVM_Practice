@@ -64,10 +64,6 @@ Window *window_ptr = nullptr;
 
 extern "C" {
 
-void engine_openWindow() {
-
-}
-
 void engine_windowSetPixel(int x, int y, int red, int green, int blue) {
     assert(window_ptr != nullptr);
 
