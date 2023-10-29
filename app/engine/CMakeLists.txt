@@ -3,13 +3,24 @@
 # SFML library is used for graphics
 find_package(SFML COMPONENTS system window graphics REQUIRED)
 
+# Add engine includes
+add_library(engine_include INTERFACE)
+add_library(engine::include ALIAS engine_include)
+
+target_include_directories(engine_include
+INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
 add_library(engine STATIC)
 
 target_link_libraries(engine
 PUBLIC
     sfml-graphics
+    engine::include
 )
 
-target_include_directories(engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
-target_sources(engine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/engine.cpp)
+target_sources(engine
+PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/engine.cpp
+)

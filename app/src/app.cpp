@@ -8,27 +8,27 @@ using FixedPoint = int;
 static int FIXED_POINT_POS = 16;
 static FixedPoint FIXED_POINT_1 = 1 << FIXED_POINT_POS;
 
-FixedPoint mulFixed(FixedPoint a, FixedPoint b) {
+inline FixedPoint mulFixed(FixedPoint a, FixedPoint b) {
     return ((long long)a * (long long)b) >> FIXED_POINT_POS;
 }
 
-FixedPoint complMulRe(FixedPoint aRe, FixedPoint aIm, FixedPoint bRe, FixedPoint bIm) {
+inline FixedPoint complMulRe(FixedPoint aRe, FixedPoint aIm, FixedPoint bRe, FixedPoint bIm) {
     return mulFixed(aRe, bRe) - mulFixed(aIm, bIm);
 }
 
-FixedPoint complMulIm(FixedPoint aRe, FixedPoint aIm, FixedPoint bRe, FixedPoint bIm) {
+inline FixedPoint complMulIm(FixedPoint aRe, FixedPoint aIm, FixedPoint bRe, FixedPoint bIm) {
     return mulFixed(aRe, bIm) + mulFixed(aIm, bRe);
 }
 
-FixedPoint complSq(FixedPoint aRe, FixedPoint bIm) {
+inline FixedPoint complSq(FixedPoint aRe, FixedPoint bIm) {
     return mulFixed(aRe, aRe) + mulFixed(bIm, bIm);
 }
 
-FixedPoint calcMandIterRe(FixedPoint zRe, FixedPoint zIm, FixedPoint cRe, FixedPoint cIm) {
+inline FixedPoint calcMandIterRe(FixedPoint zRe, FixedPoint zIm, FixedPoint cRe, FixedPoint cIm) {
     return complMulRe(zRe, zIm, zRe, zIm) + cRe;
 }
 
-FixedPoint calcMandIterIm(FixedPoint zRe, FixedPoint zIm, FixedPoint cRe, FixedPoint cIm) {
+inline FixedPoint calcMandIterIm(FixedPoint zRe, FixedPoint zIm, FixedPoint cRe, FixedPoint cIm) {
     return complMulIm(zRe, zIm, zRe, zIm) + cIm;
 }
 

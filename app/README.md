@@ -1,6 +1,10 @@
 ## Target application
 
-Target application will be run by engine library.
+Includes target application sources, implementations and engine.
 
-* engine/ folder - C API library with graphics support. Provided app function is run in custom main.
-* cpp/ folder - C++ app implementation
+Target application will be managed by engine library.
+
+* engine - C API library with graphics support. Provided app function is run in custom main.
+* src - App sources
+* original - Defines original app build
+* instrumented - Defines instrumented app build
