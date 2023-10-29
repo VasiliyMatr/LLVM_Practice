@@ -42,7 +42,7 @@ def plot_stat(window_size: int, stat: dict[str, float]):
 
     plt.ylabel("Rate")
     plt.title("Statistics for window_size = %d" % window_size)
-    plt.savefig("stat_%d.png" % window_size)
+    plt.savefig("stat_%d.png" % window_size, bbox_inches="tight")
 
 def main():
     IN_NAME = sys.argv[1]
