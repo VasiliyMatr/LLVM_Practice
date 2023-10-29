@@ -62,8 +62,6 @@ struct TracePass : public FunctionPass {
                     }
                 }
 
-                outs() << "  Add call for " << instr.getOpcodeName() << "\n";
-
                 builder.SetInsertPoint(&instr);
                 // builder.SetInsertPoint(&BB, ++builder.GetInsertPoint());
 
