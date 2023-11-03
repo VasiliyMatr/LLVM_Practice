@@ -30,9 +30,9 @@ struct TracePass : public FunctionPass {
     }
 
     bool runOnFunction(Function &func) override {
-        // if (isTracer(func.getName())) {
-        //     return false;
-        // }
+        if (isTracer(func.getName())) {
+            return false;
+        }
 
         LLVMContext &ctx = func.getContext();
         IRBuilder<> builder(ctx);
