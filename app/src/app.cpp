@@ -1,6 +1,3 @@
-#include <cstdio>
-#include <iostream>
-
 #include <engine.hpp>
 
 using FixedPoint = int;
