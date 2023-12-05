@@ -1,0 +1,54 @@
+FUNC :
+    TYPE ID {'(' ')' | '(' TYPE ID {',' TYPE ID}* ')'} '{' STATEMENT* '}'
+
+STATEMENT :
+    EXPRESSION ';' |
+    VAR_DECL |
+    RETURN |
+    IF |
+    WHILE
+
+WHILE :
+    'while' '(' EXPRESSION ')' '{' STATEMENT* '}'
+
+IF :
+    'if' '(' EXPRESSION ')' '{' STATEMENT* '}'
+
+RETURN :
+    'return' EXPRESSION ';'
+
+VAR_DECL :
+    TYPE ID '=' EXPRESSION ';'
+
+TYPE :
+    'int' |
+    'fixed'
+
+EXPRESSION :
+    {ID '='}* COMPARE
+
+COMPARE:
+    ADD_SUB {{'>'|'<'|'=='|'!='} ADD_SUB}*
+
+ADD_SUB :
+    MUL_DIV {{'+'|'-'} MUL_DIV}*
+MUL_DIV :
+    UNARY {{'*'|'/'} UNARY}*
+UNARY :
+    {'+'|'-'}? EXPR_BRACES
+EXPR_BRACES :
+    '(' EXPRESSION ')' |
+    VALUE
+
+CALL :
+    ID '(' ')' |
+    ID '(' VALUE {',' VALUE}* ')'
+
+VALUE : ID |
+        INT_NUM |
+        FIXED_NUM |
+        CALL
+
+ID : [A-Za-z_][A-Za-z0-9_]*
+INT_NUM : {[1-9][0-9]* | '0'}
+FIXED_NUM : INT_NUM'.'[0-9]*
