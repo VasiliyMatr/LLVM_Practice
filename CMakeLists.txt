@@ -16,6 +16,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 # C++20 is the default standard
 set(CMAKE_CXX_STANDARD 20)
 
+add_subdirectory(third_party)
+
 add_subdirectory(trace)
 add_subdirectory(app)
 add_subdirectory(ir_gen)
+
+add_subdirectory(lang)
