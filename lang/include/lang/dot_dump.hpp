@@ -28,43 +28,56 @@ class ASTDotDumper final : public InterfaceASTNodeVisitor {
               << std::endl;
     }
 
-    using UnaryOpType = ASTNode::UnaryOp::UnaryOpType;
+    using UnOpType = ASTNode::UnOpType;
 
-    static const char *unOpTypeToStr(UnaryOpType type) {
+    static const char *unOpTypeToStr(UnOpType type) {
         switch (type) {
-        case UnaryOpType::UN_MINUS:
+        case UnOpType::UN_MINUS:
             return "-";
-        case UnaryOpType::UN_PLUS:
+        case UnOpType::UN_PLUS:
             return "+";
         }
 
         assert(0);
     }
 
-    using BinaryOpType = ASTNode::BinaryOp::BinaryOpType;
+    using BinOpType = ASTNode::BinOpType;
 
-    static const char *binOpTypeToStr(BinaryOpType type) {
+    static const char *binOpTypeToStr(BinOpType type) {
         switch (type) {
-        case BinaryOpType::ADD:
+        case BinOpType::ADD:
             return "+";
-        case BinaryOpType::SUB:
+        case BinOpType::SUB:
             return "-";
-        case BinaryOpType::MUL:
+        case BinOpType::MUL:
             return "*";
-        case BinaryOpType::DIV:
+        case BinOpType::DIV:
             return "/";
-        case BinaryOpType::CMP_LESS:
+        case BinOpType::CMP_LESS:
             return "<";
-        case BinaryOpType::CMP_LESS_EQUAL:
+        case BinOpType::CMP_LESS_EQUAL:
             return "<=";
-        case BinaryOpType::CMP_GREATER:
+        case BinOpType::CMP_GREATER:
             return ">";
-        case BinaryOpType::CMP_GREATER_EQUAL:
+        case BinOpType::CMP_GREATER_EQUAL:
             return ">=";
-        case BinaryOpType::CMP_EQUAL:
+        case BinOpType::CMP_EQUAL:
             return "==";
-        case BinaryOpType::CMP_NOT_EQUAL:
+        case BinOpType::CMP_NOT_EQUAL:
             return "!=";
+        }
+
+        assert(0);
+    }
+
+    using VarType = ASTNode::VarType;
+
+    static const char *varTypeToStr(VarType type) {
+        switch (type) {
+        case VarType::INT:
+            return "int";
+        case VarType::FIXED:
+            return "fixed";
         }
 
         assert(0);
@@ -156,6 +169,74 @@ class ASTDotDumper final : public InterfaceASTNodeVisitor {
 
         dump_edge(&node, lval);
         dump_edge(&node, expr);
+    }
+
+    void visit(const ASTNode::ExprStatement &node) override {
+        std::ostringstream label;
+
+        label << "Expr statement";
+
+        auto label_str = label.str();
+        dump_node(&node, label_str.c_str());
+
+        const auto *expr = node.getExpr();
+        expr->accept(*this);
+
+        const auto *next = node.next();
+        if (next != nullptr) {
+            next->accept(*this);
+            dump_edge(&node, next);
+        }
+
+        dump_edge(&node, expr);
+    }
+
+    void visit(const ASTNode::VarDef &node) override {
+        std::ostringstream label;
+
+        label << "Var definition: " << varTypeToStr(node.getType());
+
+        auto label_str = label.str();
+        dump_node(&node, label_str.c_str());
+
+        const auto *id = node.getId();
+        id->accept(*this);
+
+        const auto *expr = node.getExpr();
+        expr->accept(*this);
+
+        const auto *next = node.next();
+        if (next != nullptr) {
+            next->accept(*this);
+            dump_edge(&node, next);
+        }
+
+        dump_edge(&node, id);
+        dump_edge(&node, expr);
+    }
+
+    void visit(const ASTNode::IfStatement &node) override {
+        std::ostringstream label;
+
+        label << "If statement";
+
+        auto label_str = label.str();
+        dump_node(&node, label_str.c_str());
+
+        const auto *expr = node.getExpr();
+        expr->accept(*this);
+
+        const auto statements = node.getStatements();
+        statements->accept(*this);
+
+        const auto *next = node.next();
+        if (next != nullptr) {
+            next->accept(*this);
+            dump_edge(&node, next);
+        }
+
+        dump_edge(&node, expr);
+        dump_edge(&node, statements);
     }
 };
 

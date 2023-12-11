@@ -1,6 +1,7 @@
 #ifndef AST_HPP
 #define AST_HPP
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -17,7 +18,16 @@ struct InterfaceASTNode {
     virtual void accept(InterfaceASTNodeVisitor &) const = 0;
 };
 
+struct InterfaceStatement : public InterfaceASTNode {
+    virtual void append(const InterfaceStatement *other) noexcept = 0;
+    NODISCARD virtual const InterfaceStatement *next() const noexcept = 0;
+};
+
 namespace ASTNode {
+
+class ExprStatement;
+class IfStatement;
+class VarDef;
 
 class Id;
 
@@ -32,6 +42,10 @@ class Assign;
 
 struct InterfaceASTNodeVisitor {
     virtual ~InterfaceASTNodeVisitor() = default;
+
+    virtual void visit(const ASTNode::ExprStatement &) = 0;
+    virtual void visit(const ASTNode::IfStatement &) = 0;
+    virtual void visit(const ASTNode::VarDef &) = 0;
 
     virtual void visit(const ASTNode::IntVal &) = 0;
     virtual void visit(const ASTNode::FixedVal &) = 0;
@@ -89,16 +103,14 @@ class Id final : public InterfaceASTNode {
     void accept(InterfaceASTNodeVisitor &v) const override { v.visit(*this); }
 };
 
-class UnaryOp final : public InterfaceASTNode {
-  public:
-    enum class UnaryOpType { UN_PLUS, UN_MINUS };
+enum class UnOpType { UN_PLUS, UN_MINUS };
 
-  private:
-    UnaryOpType m_type;
+class UnaryOp final : public InterfaceASTNode {
+    UnOpType m_type;
     const InterfaceASTNode *m_expr = nullptr;
 
   public:
-    explicit UnaryOp(UnaryOpType type, const InterfaceASTNode *expr)
+    explicit UnaryOp(UnOpType type, const InterfaceASTNode *expr)
         : m_type(type), m_expr(expr) {}
 
     NODISCARD auto getType() const noexcept { return m_type; }
@@ -107,28 +119,26 @@ class UnaryOp final : public InterfaceASTNode {
     void accept(InterfaceASTNodeVisitor &v) const override { v.visit(*this); }
 };
 
-class BinaryOp final : public InterfaceASTNode {
-  public:
-    enum class BinaryOpType {
-        MUL,
-        DIV,
-        ADD,
-        SUB,
-        CMP_LESS,
-        CMP_LESS_EQUAL,
-        CMP_GREATER,
-        CMP_GREATER_EQUAL,
-        CMP_EQUAL,
-        CMP_NOT_EQUAL,
-    };
+enum class BinOpType {
+    MUL,
+    DIV,
+    ADD,
+    SUB,
+    CMP_LESS,
+    CMP_LESS_EQUAL,
+    CMP_GREATER,
+    CMP_GREATER_EQUAL,
+    CMP_EQUAL,
+    CMP_NOT_EQUAL,
+};
 
-  private:
-    BinaryOpType m_type;
+class BinaryOp final : public InterfaceASTNode {
+    BinOpType m_type;
     const InterfaceASTNode *m_left = nullptr;
     const InterfaceASTNode *m_right = nullptr;
 
   public:
-    BinaryOp(BinaryOpType type, const InterfaceASTNode *left,
+    BinaryOp(BinOpType type, const InterfaceASTNode *left,
              const InterfaceASTNode *right)
         : m_type(type), m_left(left), m_right(right) {}
 
@@ -149,6 +159,82 @@ class Assign final : public InterfaceASTNode {
 
     NODISCARD const auto *getLval() const noexcept { return m_lval; }
     NODISCARD const auto *getExpr() const noexcept { return m_expr; }
+
+    void accept(InterfaceASTNodeVisitor &v) const override { v.visit(*this); }
+};
+
+class ExprStatement : public InterfaceStatement {
+    const InterfaceASTNode *m_expr = nullptr;
+    const InterfaceStatement *m_next = nullptr;
+
+  public:
+    ExprStatement(const InterfaceASTNode *expr) : m_expr(expr) {}
+
+    NODISCARD const auto *getExpr() const noexcept { return m_expr; }
+
+    NODISCARD const InterfaceStatement *next() const noexcept override {
+        return m_next;
+    }
+
+    void append(const InterfaceStatement *next) noexcept override {
+        assert(m_next == nullptr);
+        m_next = next;
+    }
+
+    void accept(InterfaceASTNodeVisitor &v) const override { v.visit(*this); }
+};
+
+enum class VarType { INT, FIXED };
+
+class VarDef : public InterfaceStatement {
+    VarType m_type;
+    const Id *m_id = nullptr;
+    const InterfaceASTNode *m_expr = nullptr;
+    const InterfaceStatement *m_next = nullptr;
+
+  public:
+    VarDef(VarType type, const Id *id, const InterfaceASTNode *expr)
+        : m_type(type), m_id(id), m_expr(expr) {}
+
+    NODISCARD auto getType() const noexcept { return m_type; }
+    NODISCARD const auto *getId() const noexcept { return m_id; }
+    NODISCARD const auto *getExpr() const noexcept { return m_expr; }
+
+    NODISCARD const InterfaceStatement *next() const noexcept override {
+        return m_next;
+    }
+
+    void append(const InterfaceStatement *next) noexcept override {
+        assert(m_next == nullptr);
+        m_next = next;
+    }
+
+    void accept(InterfaceASTNodeVisitor &v) const override { v.visit(*this); }
+};
+
+class IfStatement : public InterfaceStatement {
+    const InterfaceASTNode *m_expr = nullptr;
+    const InterfaceStatement *m_statements = nullptr;
+    const InterfaceStatement *m_next = nullptr;
+
+  public:
+    IfStatement(const InterfaceASTNode *expr,
+                const InterfaceStatement *statements)
+        : m_expr(expr), m_statements(statements) {}
+
+    NODISCARD const auto *getExpr() const noexcept { return m_expr; }
+    NODISCARD const auto *getStatements() const noexcept {
+        return m_statements;
+    }
+
+    NODISCARD const InterfaceStatement *next() const noexcept override {
+        return m_next;
+    }
+
+    void append(const InterfaceStatement *next) noexcept override {
+        assert(m_next == nullptr);
+        m_next = next;
+    }
 
     void accept(InterfaceASTNodeVisitor &v) const override { v.visit(*this); }
 };

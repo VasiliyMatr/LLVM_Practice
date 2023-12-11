@@ -22,6 +22,9 @@ INT_NUM             ([1-9][0-9]*|0)
 "("                     return yy::parser::token_type::ROUND_BR_OPEN;
 ")"                     return yy::parser::token_type::ROUND_BR_CLOSE;
 
+"{"                     return yy::parser::token_type::CURLY_BR_OPEN;
+"}"                     return yy::parser::token_type::CURLY_BR_CLOSE;
+
 "+"                     return yy::parser::token_type::PLUS;
 "-"                     return yy::parser::token_type::MINUS;
 
@@ -38,6 +41,11 @@ INT_NUM             ([1-9][0-9]*|0)
 "="                     return yy::parser::token_type::ASSIGN;
 
 ";"                     return yy::parser::token_type::SEMICOLON;
+
+"int"                   return yy::parser::token_type::INT_TYPE;
+"fixed"                 return yy::parser::token_type::FIXED_TYPE;
+
+"if"                    return yy::parser::token_type::IF;
 
 {IDENTIFIER}            return yy::parser::token_type::ID;
 
