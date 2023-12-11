@@ -7,25 +7,23 @@
 
 %param { yy::Driver* driver }
 
-%code requires
-{
+%code requires {
 #include <string>
 
-#include <ast.hpp>
+#include <lang/ast.hpp>
 
 namespace yy { class Driver; }
 
 }
 
-%code
-{
-#include <driver.hpp>
+%code {
+#include <lang/driver.hpp>
 
 namespace yy {
 
 parser::token_type yylex(parser::semantic_type *yylval, Driver *driver);
 
-}
+} // namespace yy
 
 }
 
@@ -36,8 +34,10 @@ parser::token_type yylex(parser::semantic_type *yylval, Driver *driver);
     MINUS
     ASTERISK
     SLASH
-    LESS_THAN
-    GREATER_THAN
+    LESS
+    LESS_EQUAL
+    GREATER
+    GREATER_EQUAL
     EQUAL
     NOT_EQUAL
     ASSIGN
@@ -45,13 +45,13 @@ parser::token_type yylex(parser::semantic_type *yylval, Driver *driver);
     SEMICOLON
 ;
 
-%token <const toy::ASTNode::Id *> ID;
+%token <const lang::ASTNode::Id *> ID;
 
-%token <int32_t> INT_VAL;
+%token <const lang::ASTNode::IntVal *> INT_VAL;
 
-%token <float> FIXED_VAL;
+%token <const lang::ASTNode::FixedVal *> FIXED_VAL;
 
-%nterm <const toy::InterfaceASTNode *>
+%nterm <const lang::InterfaceASTNode *>
     AST
     Expression
     Compare
@@ -75,8 +75,10 @@ Expression:
 
 Compare:
     AddSub { $$ = $1; }
-    | Compare LESS_THAN AddSub { $$ = driver->createBinOp(Driver::BinaryOpType::CMP_LESS, $1, $3); }
-    | Compare GREATER_THAN AddSub { $$ = driver->createBinOp(Driver::BinaryOpType::CMP_GREATER, $1, $3); }
+    | Compare LESS AddSub { $$ = driver->createBinOp(Driver::BinaryOpType::CMP_LESS, $1, $3); }
+    | Compare LESS_EQUAL AddSub { $$ = driver->createBinOp(Driver::BinaryOpType::CMP_LESS_EQUAL, $1, $3); }
+    | Compare GREATER AddSub { $$ = driver->createBinOp(Driver::BinaryOpType::CMP_GREATER, $1, $3); }
+    | Compare GREATER_EQUAL AddSub { $$ = driver->createBinOp(Driver::BinaryOpType::CMP_GREATER_EQUAL, $1, $3); }
     | Compare EQUAL AddSub { $$ = driver->createBinOp(Driver::BinaryOpType::CMP_EQUAL, $1, $3); }
     | Compare NOT_EQUAL AddSub { $$ = driver->createBinOp(Driver::BinaryOpType::CMP_NOT_EQUAL, $1, $3); }
 ;
@@ -105,8 +107,8 @@ ExprBr:
 ;
 
 Value:
-    INT_VAL { $$ = driver->createIntVal($1); }
-    | FIXED_VAL { $$ = driver->createFixedVal($1); }
+    INT_VAL { $$ = $1; }
+    | FIXED_VAL { $$ = $1; }
     | ID { $$ = $1; }
 ;
 

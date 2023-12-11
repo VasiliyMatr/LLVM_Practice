@@ -7,7 +7,7 @@
 
 #define NODISCARD [[nodiscard]]
 
-namespace toy {
+namespace lang {
 
 struct InterfaceASTNodeVisitor;
 
@@ -19,9 +19,10 @@ struct InterfaceASTNode {
 
 namespace ASTNode {
 
-class Int;
-class Fixed;
 class Id;
+
+class IntVal;
+class FixedVal;
 
 class UnaryOp;
 class BinaryOp;
@@ -32,8 +33,8 @@ class Assign;
 struct InterfaceASTNodeVisitor {
     virtual ~InterfaceASTNodeVisitor() = default;
 
-    virtual void visit(const ASTNode::Int &) = 0;
-    virtual void visit(const ASTNode::Fixed &) = 0;
+    virtual void visit(const ASTNode::IntVal &) = 0;
+    virtual void visit(const ASTNode::FixedVal &) = 0;
     virtual void visit(const ASTNode::Id &) = 0;
     virtual void visit(const ASTNode::UnaryOp &) = 0;
     virtual void visit(const ASTNode::BinaryOp &) = 0;
@@ -42,18 +43,18 @@ struct InterfaceASTNodeVisitor {
 
 namespace ASTNode {
 
-class Int final : public InterfaceASTNode {
+class IntVal final : public InterfaceASTNode {
     int32_t m_value = 0;
 
   public:
-    explicit Int(int32_t value) : m_value(value) {}
+    explicit IntVal(int32_t value) : m_value(value) {}
 
     NODISCARD auto getValue() const noexcept { return m_value; }
 
     void accept(InterfaceASTNodeVisitor &v) const override { v.visit(*this); }
 };
 
-class Fixed final : public InterfaceASTNode {
+class FixedVal final : public InterfaceASTNode {
   public:
     using FixedPoint = int32_t;
 
@@ -65,9 +66,14 @@ class Fixed final : public InterfaceASTNode {
     int32_t m_value = 0;
 
   public:
-    explicit Fixed(float to_convert) { m_value = to_convert * FIXED_POINT_1; }
+    explicit FixedVal(float to_convert) {
+        m_value = to_convert * FIXED_POINT_1;
+    }
 
     NODISCARD auto getValue() const noexcept { return m_value; }
+    NODISCARD auto getFloatValue() const noexcept {
+        return static_cast<float>(m_value) / FIXED_POINT_1;
+    }
 
     void accept(InterfaceASTNodeVisitor &v) const override { v.visit(*this); }
 };
@@ -109,7 +115,9 @@ class BinaryOp final : public InterfaceASTNode {
         ADD,
         SUB,
         CMP_LESS,
+        CMP_LESS_EQUAL,
         CMP_GREATER,
+        CMP_GREATER_EQUAL,
         CMP_EQUAL,
         CMP_NOT_EQUAL,
     };
@@ -147,6 +155,6 @@ class Assign final : public InterfaceASTNode {
 
 } // namespace ASTNode
 
-} // namespace toy
+} // namespace lang
 
 #endif // AST_HPP

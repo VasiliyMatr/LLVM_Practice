@@ -1,4 +1,3 @@
-
 find_package(FLEX REQUIRED)
 find_package(BISON REQUIRED)
 
@@ -10,24 +9,24 @@ flex_target(lexer
 bison_target(parser
     parser.yy
     ${CMAKE_CURRENT_BINARY_DIR}/parser.cpp
-    COMPILE_FLAGS "--defines=${CMAKE_CURRENT_BINARY_DIR}/yy_parser.tab.hpp"
+    COMPILE_FLAGS "--defines=${CMAKE_CURRENT_BINARY_DIR}/lang_parser.tab.hpp"
 )
 
 add_flex_bison_dependency(lexer parser)
 
-add_executable(toyc
-    src/toyc.cpp
+add_executable(langc
+    src/langc.cpp
     ${FLEX_lexer_OUTPUTS}
     ${BISON_parser_OUTPUTS}
 )
 
-target_include_directories(toyc
+target_include_directories(langc
 PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-target_link_libraries(toyc
+target_link_libraries(langc
 PRIVATE
     CLI11
 )

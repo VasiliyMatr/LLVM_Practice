@@ -1,7 +1,7 @@
 #include <CLI/CLI.hpp>
 
-#include <dot_dump.hpp>
-#include <driver.hpp>
+#include <lang/dot_dump.hpp>
+#include <lang/driver.hpp>
 
 int main(int argc, char **argv) {
     CLI::App app("Toy lang compiler");
@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
 
     if (!dot_arg->empty()) {
         std::ofstream dot_file{dot_file_name};
-        toy::ASTDotDumper dot_dumper{dot_file};
+        lang::ASTDotDumper dot_dumper{dot_file};
         dot_dumper.dump_ast(ast_root);
     }
 

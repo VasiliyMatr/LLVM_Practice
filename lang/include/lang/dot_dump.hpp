@@ -5,9 +5,9 @@
 #include <fstream>
 #include <sstream>
 
-#include "ast.hpp"
+#include <lang/ast.hpp>
 
-namespace toy {
+namespace lang {
 
 class ASTDotDumper final : public InterfaceASTNodeVisitor {
     std::ostream &m_out;
@@ -53,14 +53,18 @@ class ASTDotDumper final : public InterfaceASTNodeVisitor {
             return "*";
         case BinaryOpType::DIV:
             return "/";
+        case BinaryOpType::CMP_LESS:
+            return "<";
+        case BinaryOpType::CMP_LESS_EQUAL:
+            return "<=";
+        case BinaryOpType::CMP_GREATER:
+            return ">";
+        case BinaryOpType::CMP_GREATER_EQUAL:
+            return ">=";
         case BinaryOpType::CMP_EQUAL:
             return "==";
         case BinaryOpType::CMP_NOT_EQUAL:
             return "!=";
-        case BinaryOpType::CMP_LESS:
-            return "<";
-        case BinaryOpType::CMP_GREATER:
-            return ">";
         }
 
         assert(0);
@@ -77,21 +81,19 @@ class ASTDotDumper final : public InterfaceASTNodeVisitor {
         m_out << "}" << std::endl;
     }
 
-    void visit(const ASTNode::Int &node) override {
+    void visit(const ASTNode::IntVal &node) override {
         std::ostringstream label;
 
-        label << "Int = " << node.getValue();
+        label << "IntVal = " << node.getValue();
 
         auto label_str = label.str();
         dump_node(&node, label_str.c_str());
     }
 
-    void visit(const ASTNode::Fixed &node) override {
+    void visit(const ASTNode::FixedVal &node) override {
         std::ostringstream label;
 
-        label << "Fixed = "
-              << static_cast<float>(node.getValue()) /
-                     ASTNode::Fixed::FIXED_POINT_1;
+        label << "FixedVal = " << node.getFloatValue();
 
         auto label_str = label.str();
         dump_node(&node, label_str.c_str());
@@ -157,6 +159,6 @@ class ASTDotDumper final : public InterfaceASTNodeVisitor {
     }
 };
 
-} // namespace toy
+} // namespace lang
 
 #endif // DOT_DUMP_HPP
