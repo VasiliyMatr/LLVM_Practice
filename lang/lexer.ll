@@ -46,6 +46,7 @@ INT_NUM             ([1-9][0-9]*|0)
 "fixed"                 return yy::parser::token_type::FIXED_TYPE;
 
 "if"                    return yy::parser::token_type::IF;
+"while"                 return yy::parser::token_type::WHILE;
 
 {IDENTIFIER}            return yy::parser::token_type::ID;
 

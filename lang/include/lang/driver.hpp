@@ -14,21 +14,21 @@ namespace yy {
 
 class Driver final {
     using TType = parser::token_type;
-    using INode = lang::InterfaceASTNode;
+    using INode = lang::ast::InterfaceNode;
     using INodeUPtr = std::unique_ptr<INode>;
 
     FlexLexer *m_lexer = nullptr;
 
     std::vector<INodeUPtr> m_ast_nodes{};
 
-    const lang::InterfaceASTNode *m_ast_root;
+    const INode *m_ast_root;
 
   public:
     template <class Node, typename... Args> Node *create(Args &&...args) {
         return dynamic_cast<Node *>(m_ast_nodes
-                                       .emplace_back(std::make_unique<Node>(
-                                           std::forward<Args>(args)...))
-                                       .get());
+                                        .emplace_back(std::make_unique<Node>(
+                                            std::forward<Args>(args)...))
+                                        .get());
     }
 
     parser::token_type yylex(parser::semantic_type *yylval) {
@@ -36,23 +36,21 @@ class Driver final {
 
         switch (ttype) {
         case TType::ID: {
-            const auto *id = create<lang::ASTNode::Id>(m_lexer->YYText());
-
-            yylval->emplace<const lang::ASTNode::Id *>(id);
+            yylval->emplace<std::string>(m_lexer->YYText());
             break;
         }
         case TType::FIXED_VAL: {
             const auto *fixed_val =
-                create<lang::ASTNode::FixedVal>(std::atof(m_lexer->YYText()));
+                create<lang::ast::node::FixedVal>(std::atof(m_lexer->YYText()));
 
-            yylval->emplace<const lang::ASTNode::FixedVal *>(fixed_val);
+            yylval->emplace<const lang::ast::node::FixedVal *>(fixed_val);
             break;
         }
         case TType::INT_VAL: {
             const auto *int_val =
-                create<lang::ASTNode::IntVal>(std::atoi(m_lexer->YYText()));
+                create<lang::ast::node::IntVal>(std::atoi(m_lexer->YYText()));
 
-            yylval->emplace<const lang::ASTNode::IntVal *>(int_val);
+            yylval->emplace<const lang::ast::node::IntVal *>(int_val);
             break;
         }
         default:
