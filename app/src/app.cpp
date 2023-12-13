@@ -29,7 +29,9 @@ inline FixedPoint calcMandIterIm(FixedPoint zRe, FixedPoint zIm, FixedPoint cRe,
     return complMulIm(zRe, zIm, zRe, zIm) + cIm;
 }
 
-void app() {
+int main() {
+    engine_windowCreate();
+
     int max_zoom_level = 20;
 
     FixedPoint x_center = -FIXED_POINT_1 * 7267 / 10000;

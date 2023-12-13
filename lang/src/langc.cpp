@@ -1,8 +1,12 @@
 #include <CLI/CLI.hpp>
 
+#include <engine.hpp>
+
 #include <lang/dot_dump.hpp>
 #include <lang/driver.hpp>
 #include <lang/ir_gen.hpp>
+
+using namespace llvm;
 
 int main(int argc, char **argv) {
     CLI::App app("Toy lang compiler");
@@ -31,9 +35,36 @@ int main(int argc, char **argv) {
     }
 
     // Generate IR
-    lang::IRGen ir_gen{};
-    auto &module = ir_gen.genIR(ast_root);
-    module.print(llvm::outs(), nullptr);
+    LLVMContext context{};
+    auto module = std::make_unique<Module>("top", context);
+
+    lang::IRGen ir_gen{context, *module};
+    auto *app_func = ir_gen.genIR(ast_root);
+    module->print(llvm::outs(), nullptr);
+
+    outs() << "Running code ...\n";
+    InitializeNativeTarget();
+    InitializeNativeTargetAsmPrinter();
+
+    ExecutionEngine *ee = EngineBuilder(std::move(module)).create();
+    ee->InstallLazyFunctionCreator([&](const std::string &func_name) -> void * {
+        if (func_name == "engine_windowSetPixel") {
+            return reinterpret_cast<void *>(engine_windowSetPixel);
+        }
+        if (func_name == "engine_windowUpdate") {
+            return reinterpret_cast<void *>(engine_windowUpdate);
+        }
+        if (func_name == "engine_windowCreate") {
+            return reinterpret_cast<void *>(engine_windowCreate);
+        }
+
+        return nullptr;
+    });
+    ee->finalizeObject();
+
+    ArrayRef<GenericValue> noargs;
+    GenericValue v = ee->runFunction(app_func, noargs);
+    outs() << "Code was run\n";
 
     return 0;
 }

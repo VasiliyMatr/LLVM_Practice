@@ -1,5 +1,3 @@
-int X_WINDOW_SIZE = 400;
-int Y_WINDOW_SIZE = 400;
 
 fixed complMulRe(fixed aRe, fixed aIm, fixed bRe, fixed bIm) {
     return aRe * bRe - aIm * bIm;
@@ -21,7 +19,12 @@ fixed calcMandIterIm(fixed zRe, fixed zIm, fixed cRe, fixed cIm) {
     return complMulIm(zRe, zIm, zRe, zIm) + cIm;
 }
 
-int app() {
+int main() {
+    int X_WINDOW_SIZE = 400;
+    int Y_WINDOW_SIZE = 400;
+
+    engine_windowCreate();
+
     int max_zoom_level = 20;
 
     fixed x_center = -7267. / 10000;
@@ -31,7 +34,7 @@ int app() {
         fixed x_range_len = 3;
         fixed y_range_len = 3;
 
-        int zoom_level = 0
+        int zoom_level = 0;
         while (zoom_level < max_zoom_level) {
             fixed x_min = x_center - x_range_len / 2;
             fixed y_min = y_center - y_range_len / 2;
@@ -64,7 +67,7 @@ int app() {
                         }
                     }
 
-                    WINDOW_SET_PIXEL(x, y, i, i, i);
+                    engine_windowSetPixel(x, y, i, i, i);
 
                     y = y + 1;
                 }
@@ -72,7 +75,7 @@ int app() {
                 x = x + 1;
             }
 
-            WINDOW_UPDATE();
+            engine_windowUpdate();
 
             x_range_len = x_range_len * 3 / 4;
             y_range_len = x_range_len * 3 / 4;

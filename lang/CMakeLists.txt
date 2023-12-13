@@ -32,4 +32,6 @@ target_link_libraries(langc
 PRIVATE
     CLI11
     LLVM
+
+    engine
 )
