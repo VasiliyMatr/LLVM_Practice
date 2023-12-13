@@ -22,6 +22,8 @@ add_executable(langc
 
 target_include_directories(langc
 PRIVATE
+    ${LLVM_INCLUDE_DIRS}
+
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -29,4 +31,5 @@ PRIVATE
 target_link_libraries(langc
 PRIVATE
     CLI11
+    LLVM
 )

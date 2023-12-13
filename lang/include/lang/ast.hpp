@@ -22,13 +22,17 @@ struct InterfaceExpr : public InterfaceNode {};
 
 class ChainNode : public InterfaceNode {
     const ChainNode *m_next = nullptr;
+    size_t m_next_count = 0;
 
   public:
-    NODISCARD const ChainNode *getNext() const noexcept { return m_next; }
+    NODISCARD const auto *getNext() const noexcept { return m_next; }
+    NODISCARD auto getNextCount() const noexcept { return m_next_count; }
 
     void append(const ChainNode *next) noexcept {
         assert(m_next == nullptr);
         m_next = next;
+
+        m_next_count = next == nullptr ? 0 : next->getNextCount() + 1;
     }
 };
 
@@ -42,6 +46,8 @@ class ExprStatement;
 class VarDef;
 class IfStatement;
 class WhileStatement;
+class Return;
+class CallArg;
 
 // Expr nodes
 class IntVal;
@@ -52,6 +58,8 @@ class UnaryOp;
 class BinaryOp;
 class Assign;
 
+class Call;
+
 } // namespace node
 
 struct InterfaceNodeVisitor {
@@ -60,10 +68,12 @@ struct InterfaceNodeVisitor {
     virtual void visit(const node::FuncDef &) = 0;
     virtual void visit(const node::FuncArg &) = 0;
 
+    virtual void visit(const node::CallArg &) = 0;
     virtual void visit(const node::ExprStatement &) = 0;
     virtual void visit(const node::VarDef &) = 0;
     virtual void visit(const node::IfStatement &) = 0;
     virtual void visit(const node::WhileStatement &) = 0;
+    virtual void visit(const node::Return &) = 0;
 
     virtual void visit(const node::IntVal &) = 0;
     virtual void visit(const node::FixedVal &) = 0;
@@ -72,6 +82,14 @@ struct InterfaceNodeVisitor {
     virtual void visit(const node::UnaryOp &) = 0;
     virtual void visit(const node::BinaryOp &) = 0;
     virtual void visit(const node::Assign &) = 0;
+
+    virtual void visit(const node::Call &) = 0;
+
+    template <class Node> void visitP(const Node *node) {
+        if (node != nullptr) {
+            node->accept(*this);
+        }
+    }
 };
 
 enum class VarType { INT, FIXED };
@@ -184,6 +202,31 @@ class Assign final : public InterfaceExpr {
     void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
 };
 
+class Call final : public InterfaceExpr {
+    std::string m_callee{};
+    const CallArg *m_args = nullptr;
+
+  public:
+    Call(std::string callee, const CallArg *args)
+        : m_callee(std::move(callee)), m_args(args) {}
+
+    NODISCARD const auto &getCallee() const noexcept { return m_callee; }
+    NODISCARD const auto *getArgs() const noexcept { return m_args; }
+
+    void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
+};
+
+class CallArg final : public ChainNode {
+    const InterfaceExpr *m_expr = nullptr;
+
+  public:
+    CallArg(const InterfaceExpr *expr) : m_expr(expr) {}
+
+    NODISCARD const auto *getExpr() const noexcept { return m_expr; }
+
+    void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
+};
+
 class ExprStatement final : public ChainNode {
     const InterfaceExpr *m_expr = nullptr;
 
@@ -232,14 +275,24 @@ class WhileStatement final : public ChainNode {
     const ChainNode *m_statements = nullptr;
 
   public:
-    WhileStatement(const InterfaceExpr *expr,
-                   const ChainNode *statements)
+    WhileStatement(const InterfaceExpr *expr, const ChainNode *statements)
         : m_expr(expr), m_statements(statements) {}
 
     NODISCARD const auto *getExpr() const noexcept { return m_expr; }
     NODISCARD const auto *getStatements() const noexcept {
         return m_statements;
     }
+
+    void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
+};
+
+class Return final : public ChainNode {
+    const InterfaceExpr *m_expr = nullptr;
+
+  public:
+    Return(const InterfaceExpr *expr) : m_expr(expr) {}
+
+    NODISCARD const auto *getExpr() const noexcept { return m_expr; }
 
     void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
 };
@@ -254,6 +307,10 @@ class FuncArg final : public ChainNode {
 
     NODISCARD auto getType() const noexcept { return m_type; }
     NODISCARD const auto &getName() const noexcept { return m_name; }
+
+    NODISCARD const auto *getNext() const noexcept {
+        return dynamic_cast<const FuncArg *>(ChainNode::getNext());
+    }
 
     void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
 };

@@ -5,6 +5,12 @@
 
 %define api.value.type variant
 
+%define parse.trace
+%define parse.lac full
+
+%define parse.error detailed
+%locations
+
 %param { yy::Driver* driver }
 
 %code requires {
@@ -21,7 +27,7 @@ namespace yy { class Driver; }
 
 namespace yy {
 
-parser::token_type yylex(parser::semantic_type *yylval, Driver *driver);
+parser::token_type yylex(parser::semantic_type *yylval, parser::location_type *yylloc, Driver *driver);
 
 } // namespace yy
 
@@ -48,12 +54,14 @@ parser::token_type yylex(parser::semantic_type *yylval, Driver *driver);
     ASSIGN
 
     SEMICOLON
+    COMMA
 
     INT_TYPE
     FIXED_TYPE
 
     IF
     WHILE
+    RETURN
 ;
 
 %token <std::string> ID;
@@ -75,10 +83,15 @@ parser::token_type yylex(parser::semantic_type *yylval, Driver *driver);
 %nterm <lang::ast::node::VarDef *> VarDef;
 %nterm <lang::ast::node::FuncDef *> FuncDef;
 %nterm <lang::ast::node::FuncArg *> FuncArg;
+%nterm <lang::ast::node::FuncArg *> FuncArgNonEmpty;
 
-%nterm <lang::ast::node::WhileStatement *> WhileStatement
-%nterm <lang::ast::node::IfStatement *> IfStatement
-%nterm <lang::ast::node::ExprStatement *> ExprStatement
+%nterm <lang::ast::node::Return *> Return;
+%nterm <lang::ast::node::WhileStatement *> WhileStatement;
+%nterm <lang::ast::node::IfStatement *> IfStatement;
+%nterm <lang::ast::node::ExprStatement *> ExprStatement;
+
+%nterm <lang::ast::node::CallArg *> CallArg;
+%nterm <lang::ast::node::CallArg *> CallArgNonEmpty;
 
 %nterm <lang::ast::InterfaceExpr *>
     Expression
@@ -88,6 +101,7 @@ parser::token_type yylex(parser::semantic_type *yylval, Driver *driver);
     Unary
     ExprBr
     Value
+    Call
 ;
 
 %%
@@ -108,16 +122,28 @@ FuncDef:
 ;
 
 FuncArg:
-    VarType ID FuncArg { $3->append(driver->create<lang::ast::node::FuncArg>($1, $2)); $$ = $3; } |
+    FuncArgNonEmpty { $$ = $1; } |
     %empty { $$ = nullptr; }
 ;
 
+FuncArgNonEmpty:
+    VarType ID COMMA FuncArgNonEmpty
+        { $$ = driver->create<lang::ast::node::FuncArg>($1, $2); $$->append($4); } |
+    VarType ID
+        { $$ = driver->create<lang::ast::node::FuncArg>($1, $2); }
+;
+
 Statement:
+    Return Statement { $1->append($2); $$ = $1; } |
     WhileStatement Statement { $1->append($2); $$ = $1; } |
     IfStatement Statement { $1->append($2); $$ = $1; } |
     VarDef Statement { $1->append($2); $$ = $1; } |
     ExprStatement Statement { $1->append($2); $$ = $1; } |
     %empty { $$ = nullptr; }
+;
+
+Return:
+    RETURN Expression SEMICOLON { $$ = driver->create<lang::ast::node::Return>($2); }
 ;
 
 WhileStatement:
@@ -193,22 +219,42 @@ ExprBr:
 ;
 
 Value:
+    Call { $$ = $1; } |
     INT_VAL { $$ = $1; } |
     FIXED_VAL { $$ = $1; } |
     ID { $$ = driver->create<lang::ast::node::VarVal>($1); }
+;
+
+Call:
+    ID ROUND_BR_OPEN CallArg ROUND_BR_CLOSE
+        { $$ = driver->create<lang::ast::node::Call>($1, $3); }
+;
+
+CallArg:
+    CallArgNonEmpty { $$ = $1; } |
+    %empty { $$ = nullptr; }
+;
+
+CallArgNonEmpty:
+    Expression COMMA CallArgNonEmpty
+        { $$ = driver->create<lang::ast::node::CallArg>($1); $$->append($3); } |
+    Expression
+        { $$ = driver->create<lang::ast::node::CallArg>($1); }
 ;
 
 %%
 
 namespace yy {
 
-parser::token_type yylex(parser::semantic_type *yylval, Driver *driver) {
+parser::token_type yylex(parser::semantic_type* yylval,
+    parser::location_type *yylloc, Driver* driver)
+{
     return driver->yylex(yylval);
 }
 
-void yy::parser::error(const std::string &error) {
-    std::cerr << "Parsing error: " << error << std::endl;
-    std::terminate();
+void parser::error(const parser::location_type &loc, const std::string& msg)
+{
+    std::cout << loc << ':' << msg << std::endl;
 }
 
 } // namespace yy

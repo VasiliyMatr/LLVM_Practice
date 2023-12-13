@@ -41,19 +41,21 @@ INT_NUM             ([1-9][0-9]*|0)
 "="                     return yy::parser::token_type::ASSIGN;
 
 ";"                     return yy::parser::token_type::SEMICOLON;
+","                     return yy::parser::token_type::COMMA;
 
 "int"                   return yy::parser::token_type::INT_TYPE;
 "fixed"                 return yy::parser::token_type::FIXED_TYPE;
 
 "if"                    return yy::parser::token_type::IF;
 "while"                 return yy::parser::token_type::WHILE;
+"return"                return yy::parser::token_type::RETURN;
 
 {IDENTIFIER}            return yy::parser::token_type::ID;
 
 {INT_NUM}"."{INT_NUM}   return yy::parser::token_type::FIXED_VAL;
 {INT_NUM}               return yy::parser::token_type::INT_VAL;
 
-.                       throw yy::parser::syntax_error("Invalid token: ");
+.                       return yy::parser::token_type::YYerror;
 
 
 %%

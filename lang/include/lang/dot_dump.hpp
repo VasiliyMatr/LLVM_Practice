@@ -20,12 +20,16 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         return out.str();
     }
 
-    void dump_node(const INode *node, const char *label) {
+    void dumpNode(const INode *node, const char *label) {
         m_out << get_node_name(node) << "[label = \"" << label << "\"]"
               << std::endl;
     }
 
-    void dump_edge(const INode *from, const INode *to, const char *label = "") {
+    void dumpEdge(const INode *from, const INode *to, const char *label = "") {
+        if (to == nullptr) {
+            return;
+        }
+
         m_out << get_node_name(from) << " -> " << get_node_name(to)
               << "[label = \"" << label << "\"]" << std::endl;
     }
@@ -96,7 +100,7 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         label << "IntVal = " << node.getValue();
 
         auto label_str = label.str();
-        dump_node(&node, label_str.c_str());
+        dumpNode(&node, label_str.c_str());
     }
 
     void visit(const ast::node::FixedVal &node) override {
@@ -105,7 +109,7 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         label << "FixedVal = " << node.getFloatValue();
 
         auto label_str = label.str();
-        dump_node(&node, label_str.c_str());
+        dumpNode(&node, label_str.c_str());
     }
 
     void visit(const ast::node::VarVal &node) override {
@@ -114,7 +118,7 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         label << "VarVal: " << node.getName();
 
         auto label_str = label.str();
-        dump_node(&node, label_str.c_str());
+        dumpNode(&node, label_str.c_str());
     }
 
     void visit(const ast::node::UnaryOp &node) override {
@@ -123,12 +127,12 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         label << "Unary op: " << unOpTypeToStr(node.getType());
 
         auto label_str = label.str();
-        dump_node(&node, label_str.c_str());
+        dumpNode(&node, label_str.c_str());
 
         const auto *expr = node.getExpr();
         expr->accept(*this);
 
-        dump_edge(&node, expr, "expr");
+        dumpEdge(&node, expr, "expr");
     }
 
     void visit(const ast::node::BinaryOp &node) override {
@@ -137,7 +141,7 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         label << "Binary op: " << binOpTypeToStr(node.getType());
 
         auto label_str = label.str();
-        dump_node(&node, label_str.c_str());
+        dumpNode(&node, label_str.c_str());
 
         const auto *left = node.getLeft();
         left->accept(*this);
@@ -145,8 +149,8 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         const auto *right = node.getRight();
         right->accept(*this);
 
-        dump_edge(&node, left, "left");
-        dump_edge(&node, right, "right");
+        dumpEdge(&node, left, "left");
+        dumpEdge(&node, right, "right");
     }
 
     void visit(const ast::node::Assign &node) override {
@@ -155,12 +159,30 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         label << "Assign; dest: " << node.getDest();
 
         auto label_str = label.str();
-        dump_node(&node, label_str.c_str());
+        dumpNode(&node, label_str.c_str());
 
         const auto *expr = node.getExpr();
         expr->accept(*this);
 
-        dump_edge(&node, expr, "expr");
+        dumpEdge(&node, expr, "expr");
+    }
+
+    void visit(const ast::node::CallArg &node) override {
+        std::ostringstream label;
+
+        label << "Call arg";
+
+        auto label_str = label.str();
+        dumpNode(&node, label_str.c_str());
+
+        const auto *expr = node.getExpr();
+        expr->accept(*this);
+
+        const auto *next = node.getNext();
+        visitP(next);
+
+        dumpEdge(&node, next, "next");
+        dumpEdge(&node, expr, "expr");
     }
 
     void visit(const ast::node::ExprStatement &node) override {
@@ -169,18 +191,16 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         label << "Expr statement";
 
         auto label_str = label.str();
-        dump_node(&node, label_str.c_str());
+        dumpNode(&node, label_str.c_str());
 
         const auto *expr = node.getExpr();
         expr->accept(*this);
 
         const auto *next = node.getNext();
-        if (next != nullptr) {
-            next->accept(*this);
-            dump_edge(&node, next, "next");
-        }
+        visitP(next);
 
-        dump_edge(&node, expr, "expr");
+        dumpEdge(&node, next, "next");
+        dumpEdge(&node, expr, "expr");
     }
 
     void visit(const ast::node::VarDef &node) override {
@@ -190,18 +210,16 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
               << node.getName();
 
         auto label_str = label.str();
-        dump_node(&node, label_str.c_str());
+        dumpNode(&node, label_str.c_str());
 
         const auto *expr = node.getExpr();
         expr->accept(*this);
 
         const auto *next = node.getNext();
-        if (next != nullptr) {
-            next->accept(*this);
-            dump_edge(&node, next, "next");
-        }
+        visitP(next);
 
-        dump_edge(&node, expr, "expr");
+        dumpEdge(&node, next, "next");
+        dumpEdge(&node, expr, "expr");
     }
 
     void visit(const ast::node::IfStatement &node) override {
@@ -210,22 +228,20 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         label << "If statement";
 
         auto label_str = label.str();
-        dump_node(&node, label_str.c_str());
+        dumpNode(&node, label_str.c_str());
 
         const auto *expr = node.getExpr();
         expr->accept(*this);
 
-        const auto statements = node.getStatements();
-        statements->accept(*this);
+        const auto *statements = node.getStatements();
+        visitP(statements);
 
         const auto *next = node.getNext();
-        if (next != nullptr) {
-            next->accept(*this);
-            dump_edge(&node, next, "next");
-        }
+        visitP(next);
 
-        dump_edge(&node, expr, "expr");
-        dump_edge(&node, statements, "stm");
+        dumpEdge(&node, next, "next");
+        dumpEdge(&node, expr, "expr");
+        dumpEdge(&node, statements, "stm");
     }
 
     void visit(const ast::node::WhileStatement &node) override {
@@ -234,22 +250,38 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         label << "While statement";
 
         auto label_str = label.str();
-        dump_node(&node, label_str.c_str());
+        dumpNode(&node, label_str.c_str());
 
         const auto *expr = node.getExpr();
         expr->accept(*this);
 
-        const auto statements = node.getStatements();
-        statements->accept(*this);
+        const auto *statements = node.getStatements();
+        visitP(statements);
 
         const auto *next = node.getNext();
-        if (next != nullptr) {
-            next->accept(*this);
-            dump_edge(&node, next, "next");
-        }
+        visitP(next);
 
-        dump_edge(&node, expr, "expr");
-        dump_edge(&node, statements, "stm");
+        dumpEdge(&node, next, "next");
+        dumpEdge(&node, expr, "expr");
+        dumpEdge(&node, statements, "stm");
+    }
+
+    void visit(const ast::node::Return &node) override {
+        std::ostringstream label;
+
+        label << "Return";
+
+        auto label_str = label.str();
+        dumpNode(&node, label_str.c_str());
+
+        const auto *expr = node.getExpr();
+        expr->accept(*this);
+
+        const auto *next = node.getNext();
+        visitP(next);
+
+        dumpEdge(&node, next, "next");
+        dumpEdge(&node, expr, "expr");
     }
 
     void visit(const ast::node::FuncArg &node) override {
@@ -259,13 +291,12 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
               << node.getName();
 
         auto label_str = label.str();
-        dump_node(&node, label_str.c_str());
+        dumpNode(&node, label_str.c_str());
 
         const auto *next = node.getNext();
-        if (next != nullptr) {
-            next->accept(*this);
-            dump_edge(&node, next, "next");
-        }
+        visitP(next);
+
+        dumpEdge(&node, next, "next");
     }
 
     void visit(const ast::node::FuncDef &node) override {
@@ -275,24 +306,34 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
               << node.getName();
 
         auto label_str = label.str();
-        dump_node(&node, label_str.c_str());
+        dumpNode(&node, label_str.c_str());
 
         const auto *arg = node.getArgs();
-        if (arg != nullptr) {
-            arg->accept(*this);
-            dump_edge(&node, arg, "arg");
-        }
+        visitP(arg);
 
-        const auto body = node.getBody();
-        body->accept(*this);
+        const auto *body = node.getBody();
+        visitP(body);
 
         const auto *next = node.getNext();
-        if (next != nullptr) {
-            next->accept(*this);
-            dump_edge(&node, next, "next");
-        }
+        visitP(next);
 
-        dump_edge(&node, body, "body");
+        dumpEdge(&node, next, "next");
+        dumpEdge(&node, arg, "arg");
+        dumpEdge(&node, body, "body");
+    }
+
+    void visit(const ast::node::Call &node) override {
+        std::ostringstream label;
+
+        label << "Call " << node.getCallee();
+
+        auto label_str = label.str();
+        dumpNode(&node, label_str.c_str());
+
+        const auto *args = node.getArgs();
+        visitP(args);
+
+        dumpEdge(&node, args, "args");
     }
 };
 
