@@ -34,53 +34,53 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
               << "[label = \"" << label << "\"]" << std::endl;
     }
 
-    static const char *unOpTypeToStr(ast::UnOpType type) {
-        switch (type) {
-        case ast::UnOpType::UN_MINUS:
+    static const char *unOpKindToStr(UnOpKind kind) noexcept {
+        switch (kind) {
+        case UnOpKind::MINUS:
             return "-";
-        case ast::UnOpType::UN_PLUS:
+        case UnOpKind::PLUS:
             return "+";
         }
 
-        assert(0);
+        UNREACHABLE();
     }
 
-    static const char *binOpTypeToStr(ast::BinOpType type) {
-        switch (type) {
-        case ast::BinOpType::ADD:
+    static const char *binOpKindToStr(BinOpKind kind) noexcept {
+        switch (kind) {
+        case BinOpKind::ADD:
             return "+";
-        case ast::BinOpType::SUB:
+        case BinOpKind::SUB:
             return "-";
-        case ast::BinOpType::MUL:
+        case BinOpKind::MUL:
             return "*";
-        case ast::BinOpType::DIV:
+        case BinOpKind::DIV:
             return "/";
-        case ast::BinOpType::CMP_LESS:
+        case BinOpKind::CMP_LESS:
             return "<";
-        case ast::BinOpType::CMP_LESS_EQUAL:
+        case BinOpKind::CMP_LESS_EQUAL:
             return "<=";
-        case ast::BinOpType::CMP_GREATER:
+        case BinOpKind::CMP_GREATER:
             return ">";
-        case ast::BinOpType::CMP_GREATER_EQUAL:
+        case BinOpKind::CMP_GREATER_EQUAL:
             return ">=";
-        case ast::BinOpType::CMP_EQUAL:
+        case BinOpKind::CMP_EQUAL:
             return "==";
-        case ast::BinOpType::CMP_NOT_EQUAL:
+        case BinOpKind::CMP_NOT_EQUAL:
             return "!=";
         }
 
-        assert(0);
+        UNREACHABLE();
     }
 
-    static const char *varTypeToStr(ast::VarType type) {
+    static const char *valTypeToStr(ValType type) noexcept {
         switch (type) {
-        case ast::VarType::INT:
+        case ValType::INT:
             return "int";
-        case ast::VarType::FIXED:
+        case ValType::FIXED:
             return "fixed";
         }
 
-        assert(0);
+        UNREACHABLE();
     }
 
   public:
@@ -121,32 +121,35 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         dumpNode(&node, label_str.c_str());
     }
 
-    void visit(const ast::node::UnaryOp &node) override {
+    void visit(const ast::node::UnOp &node) override {
         std::ostringstream label;
 
-        label << "Unary op: " << unOpTypeToStr(node.getType());
+        label << "Un op: " << unOpKindToStr(node.getKind());
 
         auto label_str = label.str();
         dumpNode(&node, label_str.c_str());
 
         const auto *expr = node.getExpr();
+        ASSERT(expr != nullptr);
         expr->accept(*this);
 
         dumpEdge(&node, expr, "expr");
     }
 
-    void visit(const ast::node::BinaryOp &node) override {
+    void visit(const ast::node::BinOp &node) override {
         std::ostringstream label;
 
-        label << "Binary op: " << binOpTypeToStr(node.getType());
+        label << "Binary op: " << binOpKindToStr(node.getKind());
 
         auto label_str = label.str();
         dumpNode(&node, label_str.c_str());
 
         const auto *left = node.getLeft();
+        ASSERT(left != nullptr);
         left->accept(*this);
 
         const auto *right = node.getRight();
+        ASSERT(right != nullptr);
         right->accept(*this);
 
         dumpEdge(&node, left, "left");
@@ -162,6 +165,7 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         dumpNode(&node, label_str.c_str());
 
         const auto *expr = node.getExpr();
+        ASSERT(expr != nullptr);
         expr->accept(*this);
 
         dumpEdge(&node, expr, "expr");
@@ -176,6 +180,7 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         dumpNode(&node, label_str.c_str());
 
         const auto *expr = node.getExpr();
+        ASSERT(expr != nullptr);
         expr->accept(*this);
 
         const auto *next = node.getNext();
@@ -185,7 +190,7 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         dumpEdge(&node, expr, "expr");
     }
 
-    void visit(const ast::node::ExprStatement &node) override {
+    void visit(const ast::node::ExprStmt &node) override {
         std::ostringstream label;
 
         label << "Expr statement";
@@ -194,6 +199,7 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         dumpNode(&node, label_str.c_str());
 
         const auto *expr = node.getExpr();
+        ASSERT(expr != nullptr);
         expr->accept(*this);
 
         const auto *next = node.getNext();
@@ -206,13 +212,14 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
     void visit(const ast::node::VarDef &node) override {
         std::ostringstream label;
 
-        label << "Var def; " << varTypeToStr(node.getType()) << " "
+        label << "Var def; " << valTypeToStr(node.getType()) << " "
               << node.getName();
 
         auto label_str = label.str();
         dumpNode(&node, label_str.c_str());
 
         const auto *expr = node.getExpr();
+        ASSERT(expr != nullptr);
         expr->accept(*this);
 
         const auto *next = node.getNext();
@@ -222,15 +229,16 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         dumpEdge(&node, expr, "expr");
     }
 
-    void visit(const ast::node::IfStatement &node) override {
+    void visit(const ast::node::If &node) override {
         std::ostringstream label;
 
-        label << "If statement";
+        label << "If";
 
         auto label_str = label.str();
         dumpNode(&node, label_str.c_str());
 
         const auto *expr = node.getExpr();
+        ASSERT(expr != nullptr);
         expr->accept(*this);
 
         const auto *statements = node.getStatements();
@@ -241,18 +249,19 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
 
         dumpEdge(&node, next, "next");
         dumpEdge(&node, expr, "expr");
-        dumpEdge(&node, statements, "stm");
+        dumpEdge(&node, statements, "stmts");
     }
 
-    void visit(const ast::node::WhileStatement &node) override {
+    void visit(const ast::node::While &node) override {
         std::ostringstream label;
 
-        label << "While statement";
+        label << "While";
 
         auto label_str = label.str();
         dumpNode(&node, label_str.c_str());
 
         const auto *expr = node.getExpr();
+        ASSERT(expr != nullptr);
         expr->accept(*this);
 
         const auto *statements = node.getStatements();
@@ -263,7 +272,7 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
 
         dumpEdge(&node, next, "next");
         dumpEdge(&node, expr, "expr");
-        dumpEdge(&node, statements, "stm");
+        dumpEdge(&node, statements, "stmts");
     }
 
     void visit(const ast::node::Return &node) override {
@@ -275,6 +284,7 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
         dumpNode(&node, label_str.c_str());
 
         const auto *expr = node.getExpr();
+        ASSERT(expr != nullptr);
         expr->accept(*this);
 
         const auto *next = node.getNext();
@@ -287,7 +297,7 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
     void visit(const ast::node::FuncArg &node) override {
         std::ostringstream label;
 
-        label << "Func arg: " << varTypeToStr(node.getType()) << " "
+        label << "Func arg: " << valTypeToStr(node.getType()) << " "
               << node.getName();
 
         auto label_str = label.str();
@@ -302,7 +312,7 @@ class ASTDotDumper final : public ast::InterfaceNodeVisitor {
     void visit(const ast::node::FuncDef &node) override {
         std::ostringstream label;
 
-        label << "Func def; " << varTypeToStr(node.getRetType()) << " "
+        label << "Func def; " << valTypeToStr(node.getRetType()) << " "
               << node.getName();
 
         auto label_str = label.str();

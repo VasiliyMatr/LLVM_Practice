@@ -46,11 +46,11 @@ class IRGen final : ast::InterfaceNodeVisitor {
     };
 
     class VarInfo final {
-        ast::VarType m_type;
+        ValType m_type;
         llvm::Value *m_alloca = nullptr;
 
       public:
-        VarInfo(ast::VarType type, llvm::Value *alloca)
+        VarInfo(ValType type, llvm::Value *alloca)
             : m_type{type}, m_alloca(alloca) {}
 
         NODISCARD auto type() const noexcept { return m_type; }
@@ -61,10 +61,10 @@ class IRGen final : ast::InterfaceNodeVisitor {
 
     class ExprInfo final {
         llvm::Value *m_llvm_value = nullptr;
-        ast::VarType m_type;
+        ValType m_type;
 
       public:
-        ExprInfo(llvm::Value *llvm_value, ast::VarType type)
+        ExprInfo(llvm::Value *llvm_value, ValType type)
             : m_llvm_value(llvm_value), m_type(type) {}
 
         NODISCARD auto *llvmValue() noexcept { return m_llvm_value; }
@@ -91,20 +91,20 @@ class IRGen final : ast::InterfaceNodeVisitor {
     FuncInfo *m_curr_func = nullptr;
     llvm::BasicBlock *m_curr_alloca_bb = nullptr;
 
-    ExprInfo m_last_expr_info{nullptr, ast::VarType::INT};
+    ExprInfo m_last_expr_info{nullptr, ValType::INT};
 
     llvm::Type *m_i32_t = llvm::Type::getInt32Ty(m_context);
     llvm::Type *m_i64_t = llvm::Type::getInt64Ty(m_context);
 
     llvm::ConstantInt *m_fixed_shift = m_builder.getInt32(16);
 
-    auto *castValue(llvm::Value *value, ast::VarType from, ast::VarType to) {
-        if (from == ast::VarType::INT) {
-            if (to == ast::VarType::FIXED) {
+    auto *castValue(llvm::Value *value, ValType from, ValType to) {
+        if (from == ValType::INT) {
+            if (to == ValType::FIXED) {
                 return m_builder.CreateShl(value, m_fixed_shift);
             }
         } else {
-            if (to == ast::VarType::INT) {
+            if (to == ValType::INT) {
                 return m_builder.CreateLShr(value, m_fixed_shift);
             }
         }
@@ -198,12 +198,12 @@ class IRGen final : ast::InterfaceNodeVisitor {
         visitP(node.getNext());
     }
 
-    void visit(const ast::node::ExprStatement &node) override {
+    void visit(const ast::node::ExprStmt &node) override {
         visitP(node.getExpr());
         visitP(node.getNext());
     }
 
-    void visit(const ast::node::IfStatement &node) override {
+    void visit(const ast::node::If &node) override {
         // Visit cond expr
         visitP(node.getExpr());
         auto *expr_val = m_last_expr_info.llvmValue();
@@ -230,7 +230,7 @@ class IRGen final : ast::InterfaceNodeVisitor {
         visitP(node.getNext());
     }
 
-    void visit(const ast::node::WhileStatement &node) override {
+    void visit(const ast::node::While &node) override {
         // Add cond bb
         auto *cond_bb =
             llvm::BasicBlock::Create(m_context, "", m_curr_func->llvmFunc());
@@ -288,8 +288,8 @@ class IRGen final : ast::InterfaceNodeVisitor {
         m_last_expr_info = {value, var_type};
     }
 
-    static auto cmpTypeToPred(ast::BinOpType cmp_type) noexcept {
-        using CmpT = ast::BinOpType;
+    static auto cmpKindToPred(BinOpKind cmp_type) noexcept {
+        using CmpT = BinOpKind;
         using Pred = llvm::CmpInst::Predicate;
 
         switch (cmp_type) {
@@ -312,7 +312,7 @@ class IRGen final : ast::InterfaceNodeVisitor {
         assert(0);
     }
 
-    void visit(const ast::node::BinaryOp &node) override {
+    void visit(const ast::node::BinOp &node) override {
         // Visit left
         node.getLeft()->accept(*this);
         auto *left_val = m_last_expr_info.llvmValue();
@@ -326,20 +326,20 @@ class IRGen final : ast::InterfaceNodeVisitor {
         // Cast operands
         auto operands_type = left_type;
         if (left_type != right_type) {
-            left_val = castValue(left_val, left_type, ast::VarType::FIXED);
-            right_val = castValue(right_val, right_type, ast::VarType::FIXED);
-            operands_type = ast::VarType::FIXED;
+            left_val = castValue(left_val, left_type, ValType::FIXED);
+            right_val = castValue(right_val, right_type, ValType::FIXED);
+            operands_type = ValType::FIXED;
         }
 
         // Add operation
         llvm::Value *res = nullptr;
-        ast::VarType res_type = operands_type;
+        ValType res_type = operands_type;
 
-        auto op_type = node.getType();
+        auto op_kind = node.getKind();
 
-        switch (op_type) {
-        case ast::BinOpType::MUL:
-            if (operands_type == ast::VarType::FIXED) {
+        switch (op_kind) {
+        case BinOpKind::MUL:
+            if (operands_type == ValType::FIXED) {
                 auto *l_ext = m_builder.CreateSExt(left_val, m_i64_t);
                 auto *r_ext = m_builder.CreateSExt(right_val, m_i64_t);
                 auto *mul = m_builder.CreateMul(l_ext, r_ext);
@@ -351,8 +351,8 @@ class IRGen final : ast::InterfaceNodeVisitor {
 
             break;
 
-        case ast::BinOpType::DIV:
-            if (operands_type == ast::VarType::FIXED) {
+        case BinOpKind::DIV:
+            if (operands_type == ValType::FIXED) {
                 auto *l_ext = m_builder.CreateSExt(left_val, m_i64_t);
                 auto *l_shl = m_builder.CreateShl(l_ext, m_fixed_shift);
                 auto *r_ext = m_builder.CreateSExt(right_val, m_i64_t);
@@ -364,23 +364,23 @@ class IRGen final : ast::InterfaceNodeVisitor {
 
             break;
 
-        case ast::BinOpType::ADD:
+        case BinOpKind::ADD:
             res = m_builder.CreateAdd(left_val, right_val);
             break;
 
-        case ast::BinOpType::SUB:
+        case BinOpKind::SUB:
             res = m_builder.CreateSub(left_val, right_val);
             break;
 
-        case ast::BinOpType::CMP_LESS:
-        case ast::BinOpType::CMP_LESS_EQUAL:
-        case ast::BinOpType::CMP_GREATER:
-        case ast::BinOpType::CMP_GREATER_EQUAL:
-        case ast::BinOpType::CMP_EQUAL:
-        case ast::BinOpType::CMP_NOT_EQUAL:
-            res = m_builder.CreateCmp(cmpTypeToPred(op_type), left_val,
+        case BinOpKind::CMP_LESS:
+        case BinOpKind::CMP_LESS_EQUAL:
+        case BinOpKind::CMP_GREATER:
+        case BinOpKind::CMP_GREATER_EQUAL:
+        case BinOpKind::CMP_EQUAL:
+        case BinOpKind::CMP_NOT_EQUAL:
+            res = m_builder.CreateCmp(cmpKindToPred(op_kind), left_val,
                                       right_val);
-            res_type = ast::VarType::INT;
+            res_type = ValType::INT;
 
             break;
 
@@ -391,7 +391,7 @@ class IRGen final : ast::InterfaceNodeVisitor {
         m_last_expr_info = {res, res_type};
     }
 
-    void visit(const ast::node::UnaryOp &node) override {
+    void visit(const ast::node::UnOp &node) override {
         // Visit expr
         node.getExpr()->accept(*this);
         auto *expr_val = m_last_expr_info.llvmValue();
@@ -400,11 +400,11 @@ class IRGen final : ast::InterfaceNodeVisitor {
         // Add operation
         llvm::Value *res = nullptr;
 
-        switch (node.getType()) {
-        case ast::UnOpType::UN_MINUS:
+        switch (node.getKind()) {
+        case UnOpKind::MINUS:
             res = m_builder.CreateNeg(expr_val);
             break;
-        case ast::UnOpType::UN_PLUS:
+        case UnOpKind::PLUS:
             res = expr_val;
             break;
         default:
@@ -416,7 +416,7 @@ class IRGen final : ast::InterfaceNodeVisitor {
 
     bool tryCallEngineFunc(const std::string &name,
                            std::vector<llvm::Value *> args_values,
-                           const std::vector<ast::VarType> args_types) {
+                           const std::vector<ValType> args_types) {
         if (name == WINDOW_CREATE_NAME) {
             if (args_values.size() != 0) {
                 throw SemanticError(
@@ -450,7 +450,7 @@ class IRGen final : ast::InterfaceNodeVisitor {
 
             for (size_t i = 0; i != SET_PIXEL_ARGS_NUM; ++i) {
                 args_values[i] =
-                    castValue(args_values[i], args_types[i], ast::VarType::INT);
+                    castValue(args_values[i], args_types[i], ValType::INT);
             }
 
             m_builder.CreateCall(m_window_set_pixel, args_values);
@@ -463,7 +463,7 @@ class IRGen final : ast::InterfaceNodeVisitor {
     void visit(const ast::node::Call &node) override {
         // Collect call args info
         std::vector<llvm::Value *> args_values{};
-        std::vector<ast::VarType> args_types{};
+        std::vector<ValType> args_types{};
 
         for (const ast::ChainNode *arg = node.getArgs(); arg != nullptr;
              arg = arg->getNext()) {
@@ -476,7 +476,7 @@ class IRGen final : ast::InterfaceNodeVisitor {
         const auto &callee_name = node.getCallee();
 
         if (tryCallEngineFunc(callee_name, args_values, args_types)) {
-            m_last_expr_info = {m_builder.getInt32(1), ast::VarType::INT};
+            m_last_expr_info = {m_builder.getInt32(1), ValType::INT};
             return;
         }
 
@@ -488,7 +488,7 @@ class IRGen final : ast::InterfaceNodeVisitor {
 
         auto &callee_info = it->second;
 
-        std::vector<ast::VarType> callee_args_types{};
+        std::vector<ValType> callee_args_types{};
         for (const ast::node::FuncArg *callee_arg =
                  callee_info.astFunc()->getArgs();
              callee_arg != nullptr; callee_arg = callee_arg->getNext()) {
@@ -528,12 +528,11 @@ class IRGen final : ast::InterfaceNodeVisitor {
 
     void visit(const ast::node::FixedVal &node) override {
         m_last_expr_info = {m_builder.getInt32(node.getValue()),
-                            ast::VarType::FIXED};
+                            ValType::FIXED};
     }
 
     void visit(const ast::node::IntVal &node) override {
-        m_last_expr_info = {m_builder.getInt32(node.getValue()),
-                            ast::VarType::INT};
+        m_last_expr_info = {m_builder.getInt32(node.getValue()), ValType::INT};
     }
 
   public:

@@ -70,9 +70,9 @@ parser::token_type yylex(parser::semantic_type *yylval, parser::location_type *y
 
 %token <lang::ast::node::FixedVal *> FIXED_VAL;
 
-%nterm <lang::ast::VarType> VarType;
+%nterm <lang::ValType> ValType;
 
-%nterm <lang::ast::BinOpType> CmpOp;
+%nterm <lang::BinOpKind> CmpOp;
 
 %nterm <lang::ast::ChainNode *>
     AST
@@ -86,9 +86,9 @@ parser::token_type yylex(parser::semantic_type *yylval, parser::location_type *y
 %nterm <lang::ast::node::FuncArg *> FuncArgNonEmpty;
 
 %nterm <lang::ast::node::Return *> Return;
-%nterm <lang::ast::node::WhileStatement *> WhileStatement;
-%nterm <lang::ast::node::IfStatement *> IfStatement;
-%nterm <lang::ast::node::ExprStatement *> ExprStatement;
+%nterm <lang::ast::node::While *> While;
+%nterm <lang::ast::node::If *> If;
+%nterm <lang::ast::node::ExprStmt *> ExprStmt;
 
 %nterm <lang::ast::node::CallArg *> CallArg;
 %nterm <lang::ast::node::CallArg *> CallArgNonEmpty;
@@ -117,7 +117,7 @@ GlobDef:
 ;
 
 FuncDef:
-    VarType ID ROUND_BR_OPEN FuncArg ROUND_BR_CLOSE CURLY_BR_OPEN Statement CURLY_BR_CLOSE
+    ValType ID ROUND_BR_OPEN FuncArg ROUND_BR_CLOSE CURLY_BR_OPEN Statement CURLY_BR_CLOSE
         { $$ = driver->create<lang::ast::node::FuncDef>($1, $2, $4, $7); }
 ;
 
@@ -127,18 +127,18 @@ FuncArg:
 ;
 
 FuncArgNonEmpty:
-    VarType ID COMMA FuncArgNonEmpty
+    ValType ID COMMA FuncArgNonEmpty
         { $$ = driver->create<lang::ast::node::FuncArg>($1, $2); $$->append($4); } |
-    VarType ID
+    ValType ID
         { $$ = driver->create<lang::ast::node::FuncArg>($1, $2); }
 ;
 
 Statement:
     Return Statement { $1->append($2); $$ = $1; } |
-    WhileStatement Statement { $1->append($2); $$ = $1; } |
-    IfStatement Statement { $1->append($2); $$ = $1; } |
+    While Statement { $1->append($2); $$ = $1; } |
+    If Statement { $1->append($2); $$ = $1; } |
     VarDef Statement { $1->append($2); $$ = $1; } |
-    ExprStatement Statement { $1->append($2); $$ = $1; } |
+    ExprStmt Statement { $1->append($2); $$ = $1; } |
     %empty { $$ = nullptr; }
 ;
 
@@ -146,28 +146,28 @@ Return:
     RETURN Expression SEMICOLON { $$ = driver->create<lang::ast::node::Return>($2); }
 ;
 
-WhileStatement:
+While:
     WHILE ROUND_BR_OPEN Expression ROUND_BR_CLOSE CURLY_BR_OPEN Statement CURLY_BR_CLOSE
-        { $$ = driver->create<lang::ast::node::WhileStatement>($3, $6); }
+        { $$ = driver->create<lang::ast::node::While>($3, $6); }
 ;
 
-IfStatement:
+If:
     IF ROUND_BR_OPEN Expression ROUND_BR_CLOSE CURLY_BR_OPEN Statement CURLY_BR_CLOSE
-        { $$ = driver->create<lang::ast::node::IfStatement>($3, $6); }
+        { $$ = driver->create<lang::ast::node::If>($3, $6); }
 ;
 
 VarDef:
-    VarType ID ASSIGN Expression SEMICOLON
+    ValType ID ASSIGN Expression SEMICOLON
         { $$ = driver->create<lang::ast::node::VarDef>($1, $2, $4); }
 ;
 
-VarType:
-    INT_TYPE { $$ = lang::ast::VarType::INT; } |
-    FIXED_TYPE { $$ = lang::ast::VarType::FIXED; }
+ValType:
+    INT_TYPE { $$ = lang::ValType::INT; } |
+    FIXED_TYPE { $$ = lang::ValType::FIXED; }
 ;
 
-ExprStatement:
-    Expression SEMICOLON { $$ = driver->create<lang::ast::node::ExprStatement>($1); }
+ExprStmt:
+    Expression SEMICOLON { $$ = driver->create<lang::ast::node::ExprStmt>($1); }
 ;
 
 Expression:
@@ -177,40 +177,40 @@ Expression:
 
 Compare:
     AddSub { $$ = $1; } |
-    Compare CmpOp AddSub { $$ = driver->create<lang::ast::node::BinaryOp>($2, $1, $3); }
+    Compare CmpOp AddSub { $$ = driver->create<lang::ast::node::BinOp>($2, $1, $3); }
 ;
 
 CmpOp:
-    LESS { $$ = lang::ast::BinOpType::CMP_LESS; } |
-    LESS_EQUAL { $$ = lang::ast::BinOpType::CMP_LESS_EQUAL; } |
-    GREATER { $$ = lang::ast::BinOpType::CMP_GREATER; } |
-    GREATER_EQUAL { $$ = lang::ast::BinOpType::CMP_GREATER_EQUAL; } |
-    EQUAL { $$ = lang::ast::BinOpType::CMP_EQUAL; } |
-    NOT_EQUAL { $$ = lang::ast::BinOpType::CMP_NOT_EQUAL; }
+    LESS { $$ = lang::BinOpKind::CMP_LESS; } |
+    LESS_EQUAL { $$ = lang::BinOpKind::CMP_LESS_EQUAL; } |
+    GREATER { $$ = lang::BinOpKind::CMP_GREATER; } |
+    GREATER_EQUAL { $$ = lang::BinOpKind::CMP_GREATER_EQUAL; } |
+    EQUAL { $$ = lang::BinOpKind::CMP_EQUAL; } |
+    NOT_EQUAL { $$ = lang::BinOpKind::CMP_NOT_EQUAL; }
 ;
 
 AddSub:
     MulDiv { $$ = $1; } |
     AddSub PLUS MulDiv
-        { $$ = driver->create<lang::ast::node::BinaryOp>(lang::ast::BinOpType::ADD, $1, $3); } |
+        { $$ = driver->create<lang::ast::node::BinOp>(lang::BinOpKind::ADD, $1, $3); } |
     AddSub MINUS MulDiv
-        { $$ = driver->create<lang::ast::node::BinaryOp>(lang::ast::BinOpType::SUB, $1, $3); }
+        { $$ = driver->create<lang::ast::node::BinOp>(lang::BinOpKind::SUB, $1, $3); }
 ;
 
 MulDiv:
     Unary { $$ = $1; } |
     MulDiv ASTERISK Unary
-        { $$ = driver->create<lang::ast::node::BinaryOp>(lang::ast::BinOpType::MUL, $1, $3); } |
+        { $$ = driver->create<lang::ast::node::BinOp>(lang::BinOpKind::MUL, $1, $3); } |
     MulDiv SLASH Unary
-        { $$ = driver->create<lang::ast::node::BinaryOp>(lang::ast::BinOpType::DIV, $1, $3); }
+        { $$ = driver->create<lang::ast::node::BinOp>(lang::BinOpKind::DIV, $1, $3); }
 ;
 
 Unary:
     ExprBr { $$ = $1; } |
     PLUS ExprBr
-        { $$ = driver->create<lang::ast::node::UnaryOp>(lang::ast::UnOpType::UN_PLUS, $2); } |
+        { $$ = driver->create<lang::ast::node::UnOp>(lang::UnOpKind::PLUS, $2); } |
     MINUS ExprBr
-        { $$ = driver->create<lang::ast::node::UnaryOp>(lang::ast::UnOpType::UN_MINUS, $2); }
+        { $$ = driver->create<lang::ast::node::UnOp>(lang::UnOpKind::MINUS, $2); }
 ;
 
 ExprBr:

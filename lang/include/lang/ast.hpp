@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <string>
 
-#define NODISCARD [[nodiscard]]
+#include <lang/common.hpp>
 
 namespace lang::ast {
 
@@ -38,26 +38,31 @@ class ChainNode : public InterfaceNode {
 
 namespace node {
 
-// Chain nodes
+// Global func def
 class FuncDef;
-class FuncArg;
-
-class ExprStatement;
+// Global or local variable def
 class VarDef;
-class IfStatement;
-class WhileStatement;
+
+// Statements
+// local VarDef is a statement
+class ExprStmt;
+class If;
+class While;
 class Return;
+
+// Args
+class FuncArg;
 class CallArg;
 
-// Expr nodes
+// Values
 class IntVal;
 class FixedVal;
 class VarVal;
 
-class UnaryOp;
-class BinaryOp;
+// Expr operations
+class UnOp;
+class BinOp;
 class Assign;
-
 class Call;
 
 } // namespace node
@@ -69,18 +74,18 @@ struct InterfaceNodeVisitor {
     virtual void visit(const node::FuncArg &) = 0;
 
     virtual void visit(const node::CallArg &) = 0;
-    virtual void visit(const node::ExprStatement &) = 0;
+    virtual void visit(const node::ExprStmt &) = 0;
     virtual void visit(const node::VarDef &) = 0;
-    virtual void visit(const node::IfStatement &) = 0;
-    virtual void visit(const node::WhileStatement &) = 0;
+    virtual void visit(const node::If &) = 0;
+    virtual void visit(const node::While &) = 0;
     virtual void visit(const node::Return &) = 0;
 
     virtual void visit(const node::IntVal &) = 0;
     virtual void visit(const node::FixedVal &) = 0;
     virtual void visit(const node::VarVal &) = 0;
 
-    virtual void visit(const node::UnaryOp &) = 0;
-    virtual void visit(const node::BinaryOp &) = 0;
+    virtual void visit(const node::UnOp &) = 0;
+    virtual void visit(const node::BinOp &) = 0;
     virtual void visit(const node::Assign &) = 0;
 
     virtual void visit(const node::Call &) = 0;
@@ -92,25 +97,9 @@ struct InterfaceNodeVisitor {
     }
 };
 
-enum class VarType { INT, FIXED };
-
-enum class UnOpType { UN_PLUS, UN_MINUS };
-
-enum class BinOpType {
-    MUL,
-    DIV,
-    ADD,
-    SUB,
-    CMP_LESS,
-    CMP_LESS_EQUAL,
-    CMP_GREATER,
-    CMP_GREATER_EQUAL,
-    CMP_EQUAL,
-    CMP_NOT_EQUAL,
-};
-
 namespace node {
 
+// Integral literal value
 class IntVal final : public InterfaceExpr {
     int32_t m_value = 0;
 
@@ -122,6 +111,7 @@ class IntVal final : public InterfaceExpr {
     void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
 };
 
+// Fixed point literal value
 class FixedVal final : public InterfaceExpr {
   public:
     using FixedPoint = int32_t;
@@ -146,48 +136,52 @@ class FixedVal final : public InterfaceExpr {
     void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
 };
 
+// Variable value
 class VarVal final : public InterfaceExpr {
     std::string m_name{};
 
   public:
-    VarVal(std::string name) : m_name(std::move(name)) {}
+    explicit VarVal(std::string name) : m_name(std::move(name)) {}
 
     NODISCARD const auto &getName() const noexcept { return m_name; }
 
     void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
 };
 
-class UnaryOp final : public InterfaceExpr {
-    UnOpType m_type;
+// Unary operation
+class UnOp final : public InterfaceExpr {
+    UnOpKind m_kind;
     const InterfaceExpr *m_expr = nullptr;
 
   public:
-    explicit UnaryOp(UnOpType type, const InterfaceExpr *expr)
-        : m_type(type), m_expr(expr) {}
+    explicit UnOp(UnOpKind kind, const InterfaceExpr *expr)
+        : m_kind(kind), m_expr(expr) {}
 
-    NODISCARD auto getType() const noexcept { return m_type; }
+    NODISCARD auto getKind() const noexcept { return m_kind; }
     NODISCARD const auto *getExpr() const noexcept { return m_expr; }
 
     void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
 };
 
-class BinaryOp final : public InterfaceExpr {
-    BinOpType m_type;
+// Binary operation
+class BinOp final : public InterfaceExpr {
+    BinOpKind m_kind;
     const InterfaceExpr *m_left = nullptr;
     const InterfaceExpr *m_right = nullptr;
 
   public:
-    BinaryOp(BinOpType type, const InterfaceExpr *left,
+    BinOp(BinOpKind kind, const InterfaceExpr *left,
              const InterfaceExpr *right)
-        : m_type(type), m_left(left), m_right(right) {}
+        : m_kind(kind), m_left(left), m_right(right) {}
 
-    NODISCARD auto getType() const noexcept { return m_type; }
+    NODISCARD auto getKind() const noexcept { return m_kind; }
     NODISCARD const auto *getLeft() const noexcept { return m_left; }
     NODISCARD const auto *getRight() const noexcept { return m_right; }
 
     void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
 };
 
+// Assignment operation
 class Assign final : public InterfaceExpr {
     std::string m_dest{};
     const InterfaceExpr *m_expr = nullptr;
@@ -202,6 +196,7 @@ class Assign final : public InterfaceExpr {
     void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
 };
 
+// Function call
 class Call final : public InterfaceExpr {
     std::string m_callee{};
     const CallArg *m_args = nullptr;
@@ -216,6 +211,7 @@ class Call final : public InterfaceExpr {
     void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
 };
 
+// Function call argument
 class CallArg final : public ChainNode {
     const InterfaceExpr *m_expr = nullptr;
 
@@ -227,24 +223,26 @@ class CallArg final : public ChainNode {
     void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
 };
 
-class ExprStatement final : public ChainNode {
+// Expression statement
+class ExprStmt final : public ChainNode {
     const InterfaceExpr *m_expr = nullptr;
 
   public:
-    ExprStatement(const InterfaceExpr *expr) : m_expr(expr) {}
+    ExprStmt(const InterfaceExpr *expr) : m_expr(expr) {}
 
     NODISCARD const auto *getExpr() const noexcept { return m_expr; }
 
     void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
 };
 
+// Variable definition
 class VarDef final : public ChainNode {
-    VarType m_type;
+    ValType m_type;
     std::string m_name{};
     const InterfaceExpr *m_expr = nullptr;
 
   public:
-    VarDef(VarType type, std::string name, const InterfaceExpr *expr)
+    VarDef(ValType type, std::string name, const InterfaceExpr *expr)
         : m_type(type), m_name(std::move(name)), m_expr(expr) {}
 
     NODISCARD auto getType() const noexcept { return m_type; }
@@ -254,12 +252,13 @@ class VarDef final : public ChainNode {
     void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
 };
 
-class IfStatement final : public ChainNode {
+// If statement
+class If final : public ChainNode {
     const InterfaceNode *m_expr = nullptr;
     const ChainNode *m_statements = nullptr;
 
   public:
-    IfStatement(const InterfaceNode *expr, const ChainNode *statements)
+    If(const InterfaceNode *expr, const ChainNode *statements)
         : m_expr(expr), m_statements(statements) {}
 
     NODISCARD const auto *getExpr() const noexcept { return m_expr; }
@@ -270,12 +269,13 @@ class IfStatement final : public ChainNode {
     void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
 };
 
-class WhileStatement final : public ChainNode {
+// While statement
+class While final : public ChainNode {
     const InterfaceExpr *m_expr = nullptr;
     const ChainNode *m_statements = nullptr;
 
   public:
-    WhileStatement(const InterfaceExpr *expr, const ChainNode *statements)
+    While(const InterfaceExpr *expr, const ChainNode *statements)
         : m_expr(expr), m_statements(statements) {}
 
     NODISCARD const auto *getExpr() const noexcept { return m_expr; }
@@ -286,6 +286,7 @@ class WhileStatement final : public ChainNode {
     void accept(InterfaceNodeVisitor &v) const override { v.visit(*this); }
 };
 
+// Return statement
 class Return final : public ChainNode {
     const InterfaceExpr *m_expr = nullptr;
 
@@ -298,11 +299,11 @@ class Return final : public ChainNode {
 };
 
 class FuncArg final : public ChainNode {
-    VarType m_type;
+    ValType m_type;
     std::string m_name{};
 
   public:
-    FuncArg(VarType type, std::string name)
+    FuncArg(ValType type, std::string name)
         : m_type(type), m_name(std::move(name)) {}
 
     NODISCARD auto getType() const noexcept { return m_type; }
@@ -316,13 +317,13 @@ class FuncArg final : public ChainNode {
 };
 
 class FuncDef final : public ChainNode {
-    VarType m_ret_type;
+    ValType m_ret_type;
     std::string m_name{};
     const FuncArg *m_args = nullptr;
     const ChainNode *m_body = nullptr;
 
   public:
-    FuncDef(VarType ret_type, std::string name, const FuncArg *args,
+    FuncDef(ValType ret_type, std::string name, const FuncArg *args,
             const ChainNode *body)
         : m_ret_type(ret_type), m_name(std::move(name)), m_args(args),
           m_body(body) {}
