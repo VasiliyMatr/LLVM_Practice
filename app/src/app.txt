@@ -19,7 +19,7 @@ fixed calcMandIterIm(fixed zRe, fixed zIm, fixed cRe, fixed cIm) {
     return complMulIm(zRe, zIm, zRe, zIm) + cIm;
 }
 
-int main() {
+int app() {
     int X_WINDOW_SIZE = 400;
     int Y_WINDOW_SIZE = 400;
 
@@ -27,12 +27,12 @@ int main() {
 
     int max_zoom_level = 20;
 
-    fixed x_center = -7267. / 10000;
-    fixed y_center = 25748. / 100000;
+    fixed x_center =  -0.7267;
+    fixed y_center = 0.25748;
 
     while (1) {
-        fixed x_range_len = 3;
-        fixed y_range_len = 3;
+        fixed x_range_len = 3.0;
+        fixed y_range_len = 3.0;
 
         int zoom_level = 0;
         while (zoom_level < max_zoom_level) {
@@ -52,17 +52,20 @@ int main() {
 
                     int i = 0;
                     int do_calc_loop = 1;
-                    while (do_calc_loop) {
-                        fixed zRe = calcMandIterRe(zRe, zIm, cRe, cIm);
-                        fixed zIm = calcMandIterIm(zRe, zIm, cRe, cIm);
-
-                        if (complSq(zRe, zIm) > 4.) {
+                    while (do_calc_loop == 1) {
+                        if (complSq(zRe, zIm) > 4) {
                             do_calc_loop = 0;
                         }
 
+                        fixed nextZRe = calcMandIterRe(zRe, zIm, cRe, cIm);
+                        fixed nextZIm = calcMandIterIm(zRe, zIm, cRe, cIm);
+
+                        zRe = nextZRe;
+                        zIm = nextZIm;
+
                         i = i + 1;
 
-                        if (i >= 255) {
+                        if (i >= 256) {
                             do_calc_loop = 0;
                         }
                     }
@@ -83,5 +86,7 @@ int main() {
             zoom_level = zoom_level + 1;
         }
     }
+
+    return 0;
 }
 

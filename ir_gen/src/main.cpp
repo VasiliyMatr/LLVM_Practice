@@ -17,7 +17,7 @@
 
 using namespace llvm;
 
-void app() {
+int main() {
     LLVMContext context;
 
     auto module = std::make_unique<Module>("app.cpp", context);
@@ -47,22 +47,22 @@ void app() {
     FunctionCallee engine_windowUpdate_func = module->getOrInsertFunction(
         "engine_windowUpdate", engine_windowUpdate_type);
 
-    // declare: void app();
-    FunctionType *app_type = FunctionType::get(void_type, {}, false);
-    Function *app_func = Function::Create(app_type, Function::ExternalLinkage,
-                                          "app", module.get());
+    // declare: int main();
+    FunctionType *main_type = FunctionType::get(i32_type, {}, false);
+    Function *main_func = Function::Create(main_type, Function::ExternalLinkage,
+                                          "main", module.get());
 
-    // app basic blocks
-    BasicBlock *bb00 = BasicBlock::Create(context, "", app_func);
-    BasicBlock *bb01 = BasicBlock::Create(context, "", app_func);
-    BasicBlock *bb02 = BasicBlock::Create(context, "", app_func);
-    BasicBlock *bb10 = BasicBlock::Create(context, "", app_func);
-    BasicBlock *bb17 = BasicBlock::Create(context, "", app_func);
-    BasicBlock *bb22 = BasicBlock::Create(context, "", app_func);
-    BasicBlock *bb25 = BasicBlock::Create(context, "", app_func);
-    BasicBlock *bb30 = BasicBlock::Create(context, "", app_func);
-    BasicBlock *bb44 = BasicBlock::Create(context, "", app_func);
-    BasicBlock *bb54 = BasicBlock::Create(context, "", app_func);
+    // main basic blocks
+    BasicBlock *bb00 = BasicBlock::Create(context, "", main_func);
+    BasicBlock *bb01 = BasicBlock::Create(context, "", main_func);
+    BasicBlock *bb02 = BasicBlock::Create(context, "", main_func);
+    BasicBlock *bb10 = BasicBlock::Create(context, "", main_func);
+    BasicBlock *bb17 = BasicBlock::Create(context, "", main_func);
+    BasicBlock *bb22 = BasicBlock::Create(context, "", main_func);
+    BasicBlock *bb25 = BasicBlock::Create(context, "", main_func);
+    BasicBlock *bb30 = BasicBlock::Create(context, "", main_func);
+    BasicBlock *bb44 = BasicBlock::Create(context, "", main_func);
+    BasicBlock *bb54 = BasicBlock::Create(context, "", main_func);
 
     // 0:
     builder.SetInsertPoint(bb00);
@@ -258,6 +258,7 @@ void app() {
 
     // Interpret IR
     outs() << "Running code ...\n";
+    engine_windowCreate();
     InitializeNativeTarget();
     InitializeNativeTargetAsmPrinter();
 
@@ -275,6 +276,6 @@ void app() {
     ee->finalizeObject();
 
     ArrayRef<GenericValue> noargs;
-    GenericValue v = ee->runFunction(app_func, noargs);
+    GenericValue v = ee->runFunction(main_func, noargs);
     outs() << "Code was run\n";
 }
