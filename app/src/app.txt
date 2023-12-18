@@ -86,7 +86,5 @@ int app() {
             zoom_level = zoom_level + 1;
         }
     }
-
-    return 0;
 }
 

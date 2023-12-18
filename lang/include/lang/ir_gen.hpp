@@ -159,8 +159,11 @@ class IRGen final : ast::InterfaceNodeVisitor {
 
     void visit(const ast::node::FuncDef &node) override {
         // Get args number
-        const auto *args = node.getArgs();
-        size_t num_args = args == nullptr ? 0 : args->getNextCount() + 1;
+        size_t num_args = 0;
+        for (const auto *args = node.getArgs(); args != nullptr;
+             args = args->getNext()) {
+            ++num_args;
+        }
 
         // Create function
         std::vector<llvm::Type *> args_types(num_args, m_i32_t);
@@ -182,6 +185,7 @@ class IRGen final : ast::InterfaceNodeVisitor {
         // Add func scope
         m_local_vars.emplace_back();
         // Visit func args
+        const auto *args = node.getArgs();
         visitP(args);
 
         // Add args stores
@@ -196,6 +200,9 @@ class IRGen final : ast::InterfaceNodeVisitor {
 
         // Visit function body
         visitP(node.getBody());
+        if (m_builder.GetInsertBlock()->getTerminator() == nullptr) {
+            m_builder.CreateRet(m_builder.getInt32(0));
+        }
 
         m_builder.SetInsertPoint(m_curr_alloca_bb);
         m_builder.CreateBr(first_bb);
@@ -572,16 +579,6 @@ class IRGen final : ast::InterfaceNodeVisitor {
         m_builder.CreateRet(status);
 
         return m_start;
-    }
-
-    auto getGlobVarsNames() const {
-        std::vector<std::string> out;
-
-        for (const auto &pair : m_glob_vars_types) {
-            out.push_back(pair.first);
-        }
-
-        return out;
     }
 };
 

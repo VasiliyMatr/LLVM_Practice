@@ -22,17 +22,13 @@ struct InterfaceExpr : public InterfaceNode {};
 
 class ChainNode : public InterfaceNode {
     const ChainNode *m_next = nullptr;
-    size_t m_next_count = 0;
 
   public:
     NODISCARD const auto *getNext() const noexcept { return m_next; }
-    NODISCARD auto getNextCount() const noexcept { return m_next_count; }
 
     void append(const ChainNode *next) noexcept {
         assert(m_next == nullptr);
         m_next = next;
-
-        m_next_count = next == nullptr ? 0 : next->getNextCount() + 1;
     }
 };
 
