@@ -19,17 +19,8 @@
 namespace lang {
 
 struct SemanticError final : public std::runtime_error {
-    static std::string dump_func_info(const ast::node::FuncDef *ast_func) {
-        if (ast_func == nullptr) {
-            return "Unknown func";
-        }
-
-        return ast_func->getName();
-    }
-
-    SemanticError(const ast::node::FuncDef *ast_func, const std::string &what)
-        : std::runtime_error("Semantic error in " + dump_func_info(ast_func) +
-                             ": " + what) {}
+    SemanticError(const std::string &what)
+        : std::runtime_error("Semantic error: " + what) {}
 };
 
 class IRGen final : ast::InterfaceNodeVisitor {
@@ -47,17 +38,17 @@ class IRGen final : ast::InterfaceNodeVisitor {
 
     class VarInfo final {
         ValType m_type;
-        llvm::Value *m_alloca = nullptr;
+        llvm::Value *m_location = nullptr;
 
       public:
-        VarInfo(ValType type, llvm::Value *alloca)
-            : m_type{type}, m_alloca(alloca) {}
+        VarInfo(ValType type, llvm::Value *location)
+            : m_type{type}, m_location(location) {}
 
         NODISCARD auto type() const noexcept { return m_type; }
-        NODISCARD auto *alloca() noexcept { return m_alloca; }
+        NODISCARD auto *location() noexcept { return m_location; }
     };
 
-    using ScopeVars = std::unordered_map<std::string, VarInfo>;
+    using LocalVarsInfo = std::unordered_map<std::string, VarInfo>;
 
     class ExprInfo final {
         llvm::Value *m_llvm_value = nullptr;
@@ -76,6 +67,9 @@ class IRGen final : ast::InterfaceNodeVisitor {
 
     llvm::IRBuilder<> m_builder{m_context};
 
+    llvm::Type *m_i32_t = llvm::Type::getInt32Ty(m_context);
+    llvm::Type *m_i64_t = llvm::Type::getInt64Ty(m_context);
+
     std::unordered_map<std::string, FuncInfo> m_funcs{};
 
     llvm::FunctionCallee m_window_create =
@@ -85,18 +79,69 @@ class IRGen final : ast::InterfaceNodeVisitor {
     llvm::FunctionCallee m_window_update =
         addWindowUpdate(m_context, &m_module);
 
-    // Top scope include global variables
-    std::vector<ScopeVars> m_curr_scopes{{}};
+    std::unordered_map<std::string, ValType> m_glob_vars_types{};
+    std::vector<LocalVarsInfo> m_local_vars{};
+
+    llvm::FunctionType *m_start_type =
+        llvm::FunctionType::get(m_i32_t, {}, false);
+    llvm::Function *m_start = llvm::Function::Create(
+        m_start_type, llvm::Function::ExternalLinkage, "_start", m_module);
+    llvm::BasicBlock *m_glob_init_bb =
+        llvm::BasicBlock::Create(m_context, "", m_start);
 
     FuncInfo *m_curr_func = nullptr;
     llvm::BasicBlock *m_curr_alloca_bb = nullptr;
 
     ExprInfo m_last_expr_info{nullptr, ValType::INT};
 
-    llvm::Type *m_i32_t = llvm::Type::getInt32Ty(m_context);
-    llvm::Type *m_i64_t = llvm::Type::getInt64Ty(m_context);
-
     llvm::ConstantInt *m_fixed_shift = m_builder.getInt32(16);
+
+    llvm::Value *addVar(const char *name, ValType type) {
+        // Add global variable
+        if (m_local_vars.size() == 0) {
+            m_builder.SetInsertPoint(m_glob_init_bb);
+
+            m_module.getOrInsertGlobal(name, m_i32_t);
+            auto *glob = m_module.getNamedGlobal(name);
+            glob->setLinkage(llvm::GlobalValue::InternalLinkage);
+            auto location = m_builder.CreateConstGEP1_32(m_i32_t, glob, 0);
+
+            m_glob_vars_types.emplace(name, type);
+
+            return location;
+        }
+
+        // Add scope variable
+        auto prev_bb = m_builder.GetInsertBlock();
+        m_builder.SetInsertPoint(m_curr_alloca_bb);
+        auto *alloca = m_builder.CreateAlloca(m_i32_t);
+        m_builder.SetInsertPoint(prev_bb);
+
+        m_local_vars.back().emplace(name, VarInfo{type, alloca});
+
+        return alloca;
+    }
+
+    VarInfo findVar(const std::string &name) {
+        // Seek in local scopes
+        for (auto scope_it = m_local_vars.rbegin(), end = m_local_vars.rend();
+             scope_it != end; ++scope_it) {
+            auto it = scope_it->find(name);
+            if (it != scope_it->end()) {
+                return it->second;
+            }
+        }
+
+        // Seek in global scope
+        auto *glob = m_module.getNamedGlobal(name);
+        if (glob != nullptr) {
+            auto location = m_builder.CreateConstGEP1_32(m_i32_t, glob, 0);
+            auto type = m_glob_vars_types.at(name);
+            return VarInfo{type, location};
+        }
+
+        throw SemanticError("Use of undefined variable: " + name);
+    }
 
     auto *castValue(llvm::Value *value, ValType from, ValType to) {
         if (from == ValType::INT) {
@@ -110,18 +155,6 @@ class IRGen final : ast::InterfaceNodeVisitor {
         }
 
         return value;
-    }
-
-    VarInfo &findVar(const std::string &var_name) {
-        for (auto &&scope : m_curr_scopes) {
-            auto it = scope.find(var_name);
-            if (it != scope.end()) {
-                return it->second;
-            }
-        }
-
-        throw SemanticError(m_curr_func->astFunc(),
-                            "Use of undefined variable: " + var_name);
     }
 
     void visit(const ast::node::FuncDef &node) override {
@@ -147,9 +180,17 @@ class IRGen final : ast::InterfaceNodeVisitor {
         m_builder.SetInsertPoint(m_curr_alloca_bb);
 
         // Add func scope
-        m_curr_scopes.emplace_back();
+        m_local_vars.emplace_back();
         // Visit func args
         visitP(args);
+
+        // Add args stores
+        for (size_t i = 0; args != nullptr; args = args->getNext(), ++i) {
+            auto *alloca =
+                m_local_vars.back().find(args->getName())->second.location();
+
+            m_builder.CreateStore(llvm_func->args().begin() + i, alloca);
+        }
 
         m_builder.SetInsertPoint(first_bb);
 
@@ -160,40 +201,25 @@ class IRGen final : ast::InterfaceNodeVisitor {
         m_builder.CreateBr(first_bb);
 
         // Visit next
-        m_curr_scopes.pop_back();
+        m_local_vars.pop_back();
         visitP(node.getNext());
     }
 
     void visit(const ast::node::FuncArg &node) override {
-        auto *alloca = m_builder.CreateAlloca(m_i32_t);
-        auto *llvm_func = m_curr_func->llvmFunc();
-        auto *arg_value = llvm_func->arg_begin() + llvm_func->arg_size() -
-                          node.getNextCount() - 1;
-
-        m_builder.CreateStore(arg_value, alloca);
-
-        m_curr_scopes.back().emplace(node.getName(),
-                                     VarInfo{node.getType(), alloca});
+        addVar(node.getName().c_str(), node.getType());
         visitP(node.getNext());
     }
 
     void visit(const ast::node::VarDef &node) override {
-        node.getExpr()->accept(*this);
+        auto *var_value = addVar(node.getName().c_str(), node.getType());
 
+        node.getExpr()->accept(*this);
         auto *expr_value = m_last_expr_info.llvmValue();
         auto expr_type = m_last_expr_info.type();
 
         auto *value = castValue(expr_value, expr_type, node.getType());
 
-        auto prev_insert_bb = m_builder.GetInsertBlock();
-        m_builder.SetInsertPoint(m_curr_alloca_bb);
-        auto *alloca = m_builder.CreateAlloca(m_i32_t);
-
-        m_builder.SetInsertPoint(prev_insert_bb);
-        m_builder.CreateStore(value, alloca);
-
-        m_curr_scopes.back().emplace(node.getName(),
-                                     VarInfo{node.getType(), alloca});
+        m_builder.CreateStore(value, var_value);
 
         visitP(node.getNext());
     }
@@ -218,12 +244,12 @@ class IRGen final : ast::InterfaceNodeVisitor {
 
         // Visit true statements
         m_builder.SetInsertPoint(true_bb);
-        m_curr_scopes.emplace_back();
+        m_local_vars.emplace_back();
 
         visitP(node.getStatements());
         m_builder.CreateBr(false_bb);
 
-        m_curr_scopes.pop_back();
+        m_local_vars.pop_back();
 
         // Visit next
         m_builder.SetInsertPoint(false_bb);
@@ -251,12 +277,12 @@ class IRGen final : ast::InterfaceNodeVisitor {
 
         // Visit true statements
         m_builder.SetInsertPoint(true_bb);
-        m_curr_scopes.emplace_back();
+        m_local_vars.emplace_back();
 
         visitP(node.getStatements());
         m_builder.CreateBr(cond_bb);
 
-        m_curr_scopes.pop_back();
+        m_local_vars.pop_back();
 
         // Visit next
         m_builder.SetInsertPoint(false_bb);
@@ -278,12 +304,12 @@ class IRGen final : ast::InterfaceNodeVisitor {
         auto *expr_val = m_last_expr_info.llvmValue();
         auto expr_type = m_last_expr_info.type();
 
-        auto &var = findVar(node.getDest());
+        auto var = findVar(node.getDest());
 
         auto var_type = var.type();
 
         auto *value = castValue(expr_val, expr_type, var_type);
-        m_builder.CreateStore(value, var.alloca());
+        m_builder.CreateStore(value, var.location());
 
         m_last_expr_info = {value, var_type};
     }
@@ -417,11 +443,11 @@ class IRGen final : ast::InterfaceNodeVisitor {
     bool tryCallEngineFunc(const std::string &name,
                            std::vector<llvm::Value *> args_values,
                            const std::vector<ValType> args_types) {
+        SemanticError err{name + " is called with invalid number of arguments"};
+
         if (name == WINDOW_CREATE_NAME) {
             if (args_values.size() != 0) {
-                throw SemanticError(
-                    m_curr_func->astFunc(),
-                    name + " is called with invalid number of arguments");
+                throw err;
             }
 
             m_builder.CreateCall(m_window_create);
@@ -430,9 +456,7 @@ class IRGen final : ast::InterfaceNodeVisitor {
 
         if (name == WINDOW_UPDATE_NAME) {
             if (args_values.size() != 0) {
-                throw SemanticError(
-                    m_curr_func->astFunc(),
-                    name + " is called with invalid number of arguments");
+                throw err;
             }
 
             m_builder.CreateCall(m_window_update);
@@ -443,9 +467,7 @@ class IRGen final : ast::InterfaceNodeVisitor {
             static constexpr size_t SET_PIXEL_ARGS_NUM = 5;
 
             if (args_values.size() != SET_PIXEL_ARGS_NUM) {
-                throw SemanticError(
-                    m_curr_func->astFunc(),
-                    name + " is called with invalid number of arguments");
+                throw err;
             }
 
             for (size_t i = 0; i != SET_PIXEL_ARGS_NUM; ++i) {
@@ -482,8 +504,7 @@ class IRGen final : ast::InterfaceNodeVisitor {
 
         auto it = m_funcs.find(callee_name);
         if (it == m_funcs.end()) {
-            throw SemanticError(m_curr_func->astFunc(),
-                                "Call of undefined func: " + callee_name);
+            throw SemanticError("Call of undefined func: " + callee_name);
         }
 
         auto &callee_info = it->second;
@@ -496,9 +517,8 @@ class IRGen final : ast::InterfaceNodeVisitor {
         }
 
         if (callee_args_types.size() != args_types.size()) {
-            throw SemanticError(
-                m_curr_func->astFunc(),
-                callee_name + " is called with invalid number of arguments");
+            throw SemanticError(callee_name +
+                                " is called with invalid number of arguments");
         }
 
         // Cast arguments
@@ -519,9 +539,9 @@ class IRGen final : ast::InterfaceNodeVisitor {
     }
 
     void visit(const ast::node::VarVal &node) override {
-        auto &var = findVar(node.getName());
+        auto var = findVar(node.getName());
 
-        auto *val = m_builder.CreateLoad(m_i32_t, var.alloca());
+        auto *val = m_builder.CreateLoad(m_i32_t, var.location());
 
         m_last_expr_info = {val, var.type()};
     }
@@ -543,11 +563,25 @@ class IRGen final : ast::InterfaceNodeVisitor {
         visitP(ast_root);
         auto it = m_funcs.find("app");
         if (it == m_funcs.end()) {
-            throw SemanticError(m_curr_func->astFunc(),
-                                "Can not found entry function");
+            throw SemanticError("Can not found entry function");
         }
 
-        return it->second.llvmFunc();
+        auto *app_func = it->second.llvmFunc();
+        m_builder.SetInsertPoint(m_glob_init_bb);
+        auto *status = m_builder.CreateCall(app_func);
+        m_builder.CreateRet(status);
+
+        return m_start;
+    }
+
+    auto getGlobVarsNames() const {
+        std::vector<std::string> out;
+
+        for (const auto &pair : m_glob_vars_types) {
+            out.push_back(pair.first);
+        }
+
+        return out;
     }
 };
 

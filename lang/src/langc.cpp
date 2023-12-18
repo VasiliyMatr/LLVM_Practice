@@ -42,6 +42,12 @@ int main(int argc, char **argv) {
     auto *app_func = ir_gen.genIR(ast_root);
     module->print(llvm::outs(), nullptr);
 
+    std::vector<llvm::GlobalVariable *> globs{};
+
+    for (auto &&glob : module->getGlobalList()) {
+        globs.push_back(&glob);
+    }
+
     outs() << "Running code ...\n";
     InitializeNativeTarget();
     InitializeNativeTargetAsmPrinter();
@@ -60,6 +66,13 @@ int main(int argc, char **argv) {
 
         return nullptr;
     });
+
+    std::vector<uint32_t> globs_vals{};
+    for (auto &&glob : globs) {
+        globs_vals.push_back(0);
+        ee->addGlobalMapping(glob, globs.back());
+    }
+
     ee->finalizeObject();
 
     ArrayRef<GenericValue> noargs;

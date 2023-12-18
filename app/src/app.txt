@@ -19,10 +19,10 @@ fixed calcMandIterIm(fixed zRe, fixed zIm, fixed cRe, fixed cIm) {
     return complMulIm(zRe, zIm, zRe, zIm) + cIm;
 }
 
-int app() {
-    int X_WINDOW_SIZE = 400;
-    int Y_WINDOW_SIZE = 400;
+int X_WINDOW_SIZE = 400;
+int Y_WINDOW_SIZE = 400;
 
+int app() {
     engine_windowCreate();
 
     int max_zoom_level = 20;
