@@ -64,6 +64,10 @@ Window *window_ptr = nullptr;
 
 extern "C" {
 
+void engine_windowCreate() {
+    window_ptr = new Window{"Wrap", engine_X_WINDOW_SIZE, engine_Y_WINDOW_SIZE};
+}
+
 void engine_windowSetPixel(int x, int y, int red, int green, int blue) {
     assert(window_ptr != nullptr);
 
@@ -84,13 +88,3 @@ void engine_windowUpdate() {
 }
 
 } // extern "C"
-
-int main() {
-    window_ptr = new Window{"Wrap", engine_X_WINDOW_SIZE, engine_Y_WINDOW_SIZE};
-
-    app();
-
-    delete window_ptr;
-
-    return 1;
-}

@@ -10,12 +10,14 @@ add_library(engine::include ALIAS engine_include)
 target_include_directories(engine_include
 INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${LLVM_INCLUDE_DIRS}
 )
 
 add_library(engine STATIC)
 
 target_link_libraries(engine
 PUBLIC
+    LLVM
     sfml-graphics
     engine::include
 )

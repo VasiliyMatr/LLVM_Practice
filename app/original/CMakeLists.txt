@@ -7,9 +7,9 @@ PRIVATE
     engine
 )
 
+# Also dump llvm IR
 set(MANDEL_LL ${CMAKE_CURRENT_BINARY_DIR}/mandel.ll)
 
-# Also dump llvm IR
 add_custom_command(
     OUTPUT ${MANDEL_LL}
     COMMAND ${CMAKE_CXX_COMPILER} -S -emit-llvm -O2 -std=c++20 -I${ENGINE_INCLUDE_DIR} -o ${MANDEL_LL} ${APP_SRC_DIR}/app.cpp 

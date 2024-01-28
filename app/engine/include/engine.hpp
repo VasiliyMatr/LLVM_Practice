@@ -14,9 +14,7 @@ extern "C" {
 constexpr int engine_X_WINDOW_SIZE = 400;
 constexpr int engine_Y_WINDOW_SIZE = 400;
 
-// Implemented by lib user
-void app();
-
+void engine_windowCreate();
 void engine_windowSetPixel(int x, int y, int red, int green, int blue);
 void engine_windowUpdate();
 

@@ -1,0 +1,90 @@
+
+fixed complMulRe(fixed aRe, fixed aIm, fixed bRe, fixed bIm) {
+    return aRe * bRe - aIm * bIm;
+}
+
+fixed complMulIm(fixed aRe, fixed aIm, fixed bRe, fixed bIm) {
+    return aRe * bIm + aIm * bRe;
+}
+
+fixed complSq(fixed aRe, fixed bIm) {
+    return aRe * aRe + bIm * bIm;
+}
+
+fixed calcMandIterRe(fixed zRe, fixed zIm, fixed cRe, fixed cIm) {
+    return complMulRe(zRe, zIm, zRe, zIm) + cRe;
+}
+
+fixed calcMandIterIm(fixed zRe, fixed zIm, fixed cRe, fixed cIm) {
+    return complMulIm(zRe, zIm, zRe, zIm) + cIm;
+}
+
+int X_WINDOW_SIZE = 400;
+int Y_WINDOW_SIZE = 400;
+
+int app() {
+    engine_windowCreate();
+
+    int max_zoom_level = 20;
+
+    fixed x_center =  -0.7267;
+    fixed y_center = 0.25748;
+
+    while (1) {
+        fixed x_range_len = 3.0;
+        fixed y_range_len = 3.0;
+
+        int zoom_level = 0;
+        while (zoom_level < max_zoom_level) {
+            fixed x_min = x_center - x_range_len / 2;
+            fixed y_min = y_center - y_range_len / 2;
+
+            int x = 0;
+            while (x < X_WINDOW_SIZE) {
+                fixed cRe = x * x_range_len / X_WINDOW_SIZE + x_min;
+
+                int y = 0;
+                while (y < Y_WINDOW_SIZE) {
+                    fixed cIm = y * y_range_len / Y_WINDOW_SIZE + y_min;
+
+                    fixed zRe = 0;
+                    fixed zIm = 0;
+
+                    int i = 0;
+                    int do_calc_loop = 1;
+                    while (do_calc_loop == 1) {
+                        if (complSq(zRe, zIm) > 4) {
+                            do_calc_loop = 0;
+                        }
+
+                        fixed nextZRe = calcMandIterRe(zRe, zIm, cRe, cIm);
+                        fixed nextZIm = calcMandIterIm(zRe, zIm, cRe, cIm);
+
+                        zRe = nextZRe;
+                        zIm = nextZIm;
+
+                        i = i + 1;
+
+                        if (i >= 256) {
+                            do_calc_loop = 0;
+                        }
+                    }
+
+                    engine_windowSetPixel(x, y, i, i, i);
+
+                    y = y + 1;
+                }
+
+                x = x + 1;
+            }
+
+            engine_windowUpdate();
+
+            x_range_len = x_range_len * 3 / 4;
+            y_range_len = x_range_len * 3 / 4;
+
+            zoom_level = zoom_level + 1;
+        }
+    }
+}
+
